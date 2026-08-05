@@ -856,7 +856,7 @@ export default function SettingsPage({ user, tenant, stores = [], setStores = ()
       )}
 
       {/* Feature 1: Store Locations Registry (View Only) */}
-      {hasFeature('multi_store') && activeTab === 'config' && (user.role === 'Owner' || user.role === 'OWNER') && (
+      {activeTab === 'config' && (user.role === 'Owner' || user.role === 'OWNER') && (
         <div className="glass-card p-6 rounded-3xl space-y-6">
           <div className="flex items-center justify-between border-b border-white/5 pb-3">
             <h3 className="text-base font-bold text-white flex items-center space-x-2">

@@ -150,7 +150,7 @@ function Layout({ user, tenant, onLogout, toast, showToast, stores = [], activeS
               </div>
             )}
             
-            {hasFeature('multi_store') && stores.length > 0 && (
+            {stores.length > 0 && (
               <select
                 value={activeStore}
                 onChange={(e) => setActiveStore(e.target.value)}
