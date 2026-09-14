@@ -5,15 +5,15 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://vyavhar-backend.onrender.com/api/:path*"
+      "destination": "https://eyevengers-app.onrender.com/api/:path*"
     },
     {
       "source": "/invoices/:path*",
-      "destination": "https://vyavhar-backend.onrender.com/invoices/:path*"
+      "destination": "https://eyevengers-app.onrender.com/invoices/:path*"
     },
     {
       "source": "/prescriptions/:path*",
-      "destination": "https://vyavhar-backend.onrender.com/prescriptions/:path*"
+      "destination": "https://eyevengers-app.onrender.com/prescriptions/:path*"
     },
     {
       "source": "/(.*)",
