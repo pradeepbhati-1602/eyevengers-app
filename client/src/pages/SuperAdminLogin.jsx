@@ -74,7 +74,7 @@ export default function SuperAdminLogin({ onLoginSuccess }) {
             <div className="relative">
               <input
                 type="email"
-                placeholder="admin@vyavhar.com"
+                placeholder="admin@eyevengers.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full pl-4 pr-4 py-3 bg-darkSurface border border-white/5 rounded-xl text-white focus:outline-none focus:border-red-500 transition-all"
