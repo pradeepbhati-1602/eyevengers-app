@@ -52,8 +52,8 @@ export default function Login({ onLoginSuccess }) {
   return (
     <div className="min-h-screen flex items-center justify-center bg-darkBg px-4 relative overflow-hidden">
       {/* Background ambient glowing circles */}
-      <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full bg-gold/5 blur-[120px] pulse-glow-gold"></div>
-      <div className="absolute bottom-1/4 right-1/4 w-96 h-96 rounded-full bg-electric/5 blur-[120px] pulse-glow-blue"></div>
+      <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full bg-gold/5 blur-[120px] pulse-glow-gold pointer-events-none"></div>
+      <div className="absolute bottom-1/4 right-1/4 w-96 h-96 rounded-full bg-electric/5 blur-[120px] pulse-glow-blue pointer-events-none"></div>
 
       <div className="w-full max-w-md glass-card p-8 rounded-3xl glow-gold/5 animate-fade-in-up relative z-10">
         <div className="flex flex-col items-center mb-8">
