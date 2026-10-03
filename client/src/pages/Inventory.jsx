@@ -10,7 +10,7 @@ import { useFeatures } from '../context/FeatureContext';
 export default function Inventory({ user, activeStore, stores = [] }) {
   const { hasFeature } = useFeatures();
   const [products, setProducts] = useState([]);
-  const [categories] = useState(['All', 'Frames', 'Contact Lens', 'Reading Glasses', 'Sunglasses', 'Accessories', 'Lens', 'Lens Type', 'Lens Coating', 'Repair Parts']);
+  const [categories] = useState(['All', 'Eyevengers Classic', 'Eyevengers Premium', 'Contact Lens', 'Frames', 'Reading Glasses', 'Sunglasses', 'Accessories', 'Lens', 'Repair Parts']);
   const [activeCategory, setActiveCategory] = useState('All');
   const [search, setSearch] = useState('');
   const [lowStockFilter, setLowStockFilter] = useState(false);
@@ -21,8 +21,9 @@ export default function Inventory({ user, activeStore, stores = [] }) {
   // Add product form states
   const [showAddModal, setShowAddModal] = useState(false);
   const [barcode, setBarcode] = useState('');
+  const [section, setSection] = useState('Eyevengers Classic');
   const [category, setCategory] = useState('Frames');
-  const [brand, setBrand] = useState('');
+  const [brand, setBrand] = useState('Eyevengers');
   const [name, setName] = useState('');
   const [color, setColor] = useState('');
   const [size, setSize] = useState('');
@@ -146,9 +147,21 @@ export default function Inventory({ user, activeStore, stores = [] }) {
     }
   };
 
+  const handleSectionSelect = (sec) => {
+    setSection(sec);
+    if (sec === 'Contact lens') {
+      setCategory('Contact Lens');
+    } else {
+      setCategory('Frames');
+    }
+    if (!brand || brand === 'Ray-Ban') {
+      setBrand('Eyevengers');
+    }
+  };
+
   const handleAddProduct = async (e) => {
     e.preventDefault();
-    if (!barcode || !brand || !name || !purchasePrice || !sellingPrice || !stock) {
+    if (!barcode || !name || !purchasePrice || !sellingPrice || !stock) {
       setError('Please fill in all mandatory fields');
       return;
     }
@@ -164,8 +177,9 @@ export default function Inventory({ user, activeStore, stores = [] }) {
         },
         body: JSON.stringify({
           barcode,
+          section,
           category,
-          brand,
+          brand: brand || (section && section.startsWith('Eyevengers') ? 'Eyevengers' : 'Eyevengers'),
           frame_name: name,
           frame_color: color,
           size,
@@ -211,8 +225,9 @@ export default function Inventory({ user, activeStore, stores = [] }) {
 
   const resetForm = () => {
     setBarcode('');
+    setSection('Eyevengers Classic');
     setCategory('Frames');
-    setBrand('');
+    setBrand('Eyevengers');
     setName('');
     setColor('');
     setSize('');
@@ -328,9 +343,22 @@ export default function Inventory({ user, activeStore, stores = [] }) {
                       <span className="text-[10px] text-gray-500 mt-0.5 block">{p.frame_name}</span>
                     </td>
                     <td className="py-4 pr-2">
-                      <span className="px-2 py-0.5 bg-white/5 border border-white/5 text-gray-400 rounded-md text-[9px] uppercase font-bold">
-                        {p.category}
-                      </span>
+                      <div className="flex flex-col space-y-1">
+                        {p.section && (
+                          <span className={`px-2 py-0.5 border rounded-md text-[9px] font-bold inline-block w-fit ${
+                            p.section === 'Eyevengers Premium'
+                              ? 'bg-amber-500/10 border-amber-500/30 text-amber-300'
+                              : p.section === 'Contact lens'
+                              ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
+                              : 'bg-blue-500/10 border-blue-500/30 text-blue-300'
+                          }`}>
+                            {p.section}
+                          </span>
+                        )}
+                        <span className="px-2 py-0.5 bg-white/5 border border-white/5 text-gray-400 rounded-md text-[9px] uppercase font-bold w-fit">
+                          {p.category}
+                        </span>
+                      </div>
                     </td>
                     <td className="py-4 pr-2">
                       <span className="block text-white leading-none">{p.frame_color || '-'}</span>
@@ -436,6 +464,36 @@ export default function Inventory({ user, activeStore, stores = [] }) {
             {/* Modal Form */}
             <form onSubmit={handleAddProduct} className="grid grid-cols-1 md:grid-cols-2 gap-4">
               
+              {/* 3 Main Product Sections */}
+              <div className="flex flex-col space-y-2 md:col-span-2">
+                <label className="text-xs font-bold text-gold tracking-wide uppercase flex items-center justify-between">
+                  <span>Product Section / Category *</span>
+                  <span className="text-[10px] text-gray-400 font-normal lowercase">choose store section</span>
+                </label>
+                <div className="grid grid-cols-3 gap-2.5">
+                  {[
+                    { id: 'Eyevengers Classic', label: 'Eyevengers Classic', icon: '👓', desc: 'Classic Eyewear' },
+                    { id: 'Eyevengers Premium', label: 'Eyevengers Premium', icon: '💎', desc: 'Premium Luxury' },
+                    { id: 'Contact lens', label: 'Contact lens', icon: '👁️', desc: 'Contact Lenses' }
+                  ].map((sec) => (
+                    <button
+                      key={sec.id}
+                      type="button"
+                      onClick={() => handleSectionSelect(sec.id)}
+                      className={`p-3 rounded-2xl border text-left transition-all flex flex-col justify-between ${
+                        section === sec.id
+                          ? 'bg-gradient-to-br from-gold/20 via-gold/10 to-transparent border-gold shadow-lg shadow-gold/10 text-white ring-1 ring-gold/50'
+                          : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10 hover:text-white'
+                      }`}
+                    >
+                      <div className="text-xl mb-1">{sec.icon}</div>
+                      <div className="font-extrabold text-xs leading-snug">{sec.label}</div>
+                      <div className="text-[9px] text-gray-500 mt-0.5">{sec.desc}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               <div className="flex flex-col space-y-1">
                 <label className="text-xs font-semibold text-gray-400">Barcode *</label>
                 <input

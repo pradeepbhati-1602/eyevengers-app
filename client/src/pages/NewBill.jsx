@@ -34,6 +34,34 @@ export default function NewBill({ activeStore, triggerToast }) {
   const [barcodeInput, setBarcodeInput] = useState('');
   const [barcodeError, setBarcodeError] = useState('');
 
+  // Section-based product selection
+  const [selectedSection, setSelectedSection] = useState('Eyevengers Classic');
+  const [sectionSearch, setSectionSearch] = useState('');
+
+  const SECTIONS = [
+    { id: 'Eyevengers Classic', label: 'Eyevengers Classic', icon: '👓', desc: 'Classic Collection' },
+    { id: 'Eyevengers Premium', label: 'Eyevengers Premium', icon: '💎', desc: 'Premium Luxury' },
+    { id: 'Contact lens', label: 'Contact lens', icon: '👁️', desc: 'Contact Lenses' },
+    { id: 'All', label: 'All Products', icon: '📦', desc: 'Full Catalog' }
+  ];
+
+  const getSectionProducts = (secId) => {
+    return products.filter(p => {
+      if (p.category === 'LENS_TYPE' || p.category === 'LENS_COATING') return false;
+
+      if (secId === 'Eyevengers Classic') {
+        return p.section === 'Eyevengers Classic' || (!p.section && p.category !== 'CONTACT_LENS');
+      }
+      if (secId === 'Eyevengers Premium') {
+        return p.section === 'Eyevengers Premium';
+      }
+      if (secId === 'Contact lens') {
+        return p.section === 'Contact lens' || p.category === 'CONTACT_LENS';
+      }
+      return true;
+    });
+  };
+
   // Lens details states
   const [lensType, setLensType] = useState('');
   const [lensCoating, setLensCoating] = useState('');
@@ -59,10 +87,10 @@ export default function NewBill({ activeStore, triggerToast }) {
   const [loading, setLoading] = useState(false);
   const [successData, setSuccessData] = useState(null);
 
-  // Fetch products on mount
+  // Fetch products on mount and when activeStore changes
   useEffect(() => {
     fetchProducts();
-  }, []);
+  }, [activeStore]);
 
   // Handle conversion from prescription / EyeTest screen
   useEffect(() => {
@@ -85,11 +113,15 @@ export default function NewBill({ activeStore, triggerToast }) {
 
   const fetchProducts = async () => {
     try {
-      const res = await fetch('/api/v1/products', {
+      let url = '/api/v1/products';
+      if (activeStore && activeStore !== 'all') {
+        url += `?store_id=${activeStore}`;
+      }
+      const res = await fetch(url, {
         headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
       });
       const data = await res.json();
-      setProducts(data);
+      setProducts(Array.isArray(data) ? data : (data.data || []));
     } catch (e) {
       console.error(e);
     }
@@ -627,22 +659,150 @@ export default function NewBill({ activeStore, triggerToast }) {
               </div>
             </div>
 
-            <div className="flex flex-col space-y-4">
-              <div className="flex flex-col space-y-1">
-                <label className="text-xs font-semibold text-gray-400">Select Product from Catalog *</label>
-                <select
-                  value=""
-                  onChange={(e) => handleProductChange(e.target.value)}
-                  className="w-full"
-                >
-                  <option value="">-- Choose Product --</option>
-                  {products.map(p => (
-                    <option key={p.product_id || p.id} value={p.product_id || p.id} disabled={p.current_stock <= 0}>
-                      {p.category} — {p.brand} {p.frame_name || p.product_name} [{p.current_stock} left] {p.current_stock <= 0 ? '(Out of Stock)' : ''}
-                    </option>
-                  ))}
-                </select>
+            {/* Step 1: 3 Product Sections Selection */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-gold tracking-wide uppercase flex items-center space-x-1.5">
+                  <span>Choose Section / Category</span>
+                </label>
+                <span className="text-[10px] text-gray-400">
+                  Select a section to view products
+                </span>
               </div>
+
+              {/* 3 Main Sections + All */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
+                {SECTIONS.map((sec) => {
+                  const secCount = getSectionProducts(sec.id).length;
+                  const isSelected = selectedSection === sec.id;
+                  return (
+                    <button
+                      key={sec.id}
+                      type="button"
+                      onClick={() => {
+                        setSelectedSection(sec.id);
+                        setSectionSearch('');
+                      }}
+                      className={`p-3 rounded-2xl border text-left transition-all relative flex flex-col justify-between ${
+                        isSelected
+                          ? 'bg-gradient-to-br from-gold/25 via-gold/10 to-transparent border-gold shadow-lg shadow-gold/10 text-white ring-1 ring-gold/40'
+                          : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10 hover:text-white'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between w-full mb-1">
+                        <span className="text-xl">{sec.icon}</span>
+                        <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold ${
+                          isSelected ? 'bg-gold text-darkBg' : 'bg-white/10 text-gray-400'
+                        }`}>
+                          {secCount}
+                        </span>
+                      </div>
+                      <div className="font-extrabold text-xs leading-snug">{sec.label}</div>
+                      <div className="text-[9px] text-gray-500 mt-0.5 line-clamp-1">{sec.desc}</div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Step 2: Filtered Products Display for Selected Section */}
+              {(() => {
+                const sectionItems = getSectionProducts(selectedSection);
+                const filtered = sectionItems.filter(p => {
+                  if (!sectionSearch.trim()) return true;
+                  const q = sectionSearch.toLowerCase();
+                  return (
+                    (p.frame_name || p.product_name || '').toLowerCase().includes(q) ||
+                    (p.brand || '').toLowerCase().includes(q) ||
+                    (p.barcode || '').toLowerCase().includes(q) ||
+                    (p.color || p.frame_color || '').toLowerCase().includes(q)
+                  );
+                });
+
+                return (
+                  <div className="p-3.5 rounded-2xl bg-white/[0.03] border border-white/10 space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <span className="text-xs font-semibold text-gray-300 flex items-center space-x-1.5">
+                        <span>Showing</span>
+                        <strong className="text-gold font-bold">{selectedSection}</strong>
+                        <span>Products ({filtered.length}):</span>
+                      </span>
+
+                      {sectionItems.length > 4 && (
+                        <input
+                          type="text"
+                          placeholder={`Search in ${selectedSection}...`}
+                          value={sectionSearch}
+                          onChange={(e) => setSectionSearch(e.target.value)}
+                          className="py-1 px-2.5 text-[11px] bg-darkBg border border-white/10 rounded-lg w-full sm:w-48 text-white placeholder-gray-500"
+                        />
+                      )}
+                    </div>
+
+                    {/* Section Dropdown */}
+                    <select
+                      value=""
+                      onChange={(e) => handleProductChange(e.target.value)}
+                      className="w-full text-xs py-2.5 px-3 bg-darkSurface text-white border border-white/10 rounded-xl focus:border-gold"
+                    >
+                      <option value="">
+                        {filtered.length > 0 
+                          ? `-- Select ${selectedSection} Product (${filtered.length} available) --`
+                          : `-- No products in ${selectedSection} --`}
+                      </option>
+                      {filtered.map(p => (
+                        <option key={p.product_id || p.id} value={p.product_id || p.id} disabled={p.current_stock <= 0}>
+                          {p.frame_name || p.product_name} {p.frame_color || p.color ? `(${p.frame_color || p.color})` : ''} — {formatCurrency(p.selling_price)} [{p.current_stock} left] {p.current_stock <= 0 ? '(Out of Stock)' : ''}
+                        </option>
+                      ))}
+                    </select>
+
+                    {/* Quick-tap Product Chips for 1-click addition */}
+                    {filtered.length > 0 && (
+                      <div className="space-y-1.5 pt-1">
+                        <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider block">
+                          ⚡ Quick Tap to Add:
+                        </span>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 max-h-48 overflow-y-auto pr-1">
+                          {filtered.map(p => {
+                            const outOfStock = p.current_stock <= 0;
+                            return (
+                              <button
+                                key={p.product_id || p.id}
+                                type="button"
+                                disabled={outOfStock}
+                                onClick={() => handleProductChange(p.product_id || p.id)}
+                                className={`p-2.5 rounded-xl border text-left transition-all text-xs flex flex-col justify-between ${
+                                  outOfStock 
+                                    ? 'opacity-40 bg-white/5 border-white/5 cursor-not-allowed' 
+                                    : 'bg-white/5 hover:bg-gold/15 hover:border-gold/50 active:scale-[0.98] border-white/10 group cursor-pointer'
+                                }`}
+                              >
+                                <div>
+                                  <div className="font-extrabold text-white group-hover:text-gold truncate text-[11px]">
+                                    {p.frame_name || p.product_name}
+                                  </div>
+                                  <div className="text-[9px] text-gray-400 truncate mt-0.5">
+                                    {p.brand} {p.frame_color || p.color ? `• ${p.frame_color || p.color}` : ''}
+                                  </div>
+                                </div>
+                                <div className="flex items-center justify-between mt-2 pt-1.5 border-t border-white/5">
+                                  <span className="text-gold font-extrabold text-[11px]">
+                                    {formatCurrency(p.selling_price)}
+                                  </span>
+                                  <span className={`text-[9px] font-bold ${p.current_stock <= 3 ? 'text-red-400' : 'text-green-400'}`}>
+                                    {p.current_stock} in stock
+                                  </span>
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+            </div>
 
               {billItems.length > 0 && (
                 <div className="bg-white/5 border border-white/5 rounded-2xl p-4 flex flex-col space-y-2 overflow-x-auto">
@@ -682,7 +842,6 @@ export default function NewBill({ activeStore, triggerToast }) {
                   </table>
                 </div>
               )}
-            </div>
 
             {/* Lens selection */}
             <div className="pt-2 border-t border-white/5 grid grid-cols-1 md:grid-cols-3 gap-4">

@@ -378,6 +378,7 @@ model Product {
   product_name       String
   color              String?
   size               String?
+  section            String?         @default("Eyevengers Classic")
   purchase_price     Decimal         @db.Decimal(12, 2)
   selling_price      Decimal         @db.Decimal(12, 2)
   opening_stock      Int

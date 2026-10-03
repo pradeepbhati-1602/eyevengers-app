@@ -80,10 +80,23 @@ exports.adjustStock = async (req, res) => {
 
 exports.getProducts = async (req, res) => {
   const { tenant_id } = req.user;
-  const { category, search, store_id, is_paginated, page, limit } = req.query;
+  const { category, section, search, store_id, is_paginated, page, limit } = req.query;
   const where = { tenant_id: req.user.tenant_id, ...getStoreFilter(req), status: 'ACTIVE' };
   
-  if (category && category !== 'All') where.category = category.toUpperCase().replace(' ', '_');
+  if (section && section !== 'All') {
+    where.section = section;
+  } else if (category && category !== 'All') {
+    if (category === 'Eyevengers Classic' || category === 'Eyevengers Premium') {
+      where.section = category;
+    } else if (category === 'Contact Lens' || category === 'CONTACT_LENS' || category === 'Contact lens') {
+      where.OR = [
+        { section: 'Contact lens' },
+        { category: 'CONTACT_LENS' }
+      ];
+    } else {
+      where.category = category.toUpperCase().replace(' ', '_');
+    }
+  }
   if (search) {
     where.OR = [
       { brand: { contains: search, mode: 'insensitive' } },
@@ -121,6 +134,9 @@ exports.getProducts = async (req, res) => {
         product_name: true,
         brand: true,
         category: true,
+        section: true,
+        color: true,
+        size: true,
         selling_price: true,
         current_stock: true,
         barcode: true
@@ -135,7 +151,7 @@ exports.getProducts = async (req, res) => {
 exports.createProduct = async (req, res) => {
   try {
     const { 
-      barcode, category, brand, frame_name, product_name, 
+      barcode, category, section, brand, frame_name, product_name, 
       color, frame_color, size, purchase_price, selling_price, 
       opening_stock, current_stock, low_stock_limit, low_stock_alert, supplier_name, supplier
     } = req.body;
@@ -147,12 +163,19 @@ exports.createProduct = async (req, res) => {
       targetStoreId = defaultStore.store_id;
     }
 
+    // Determine category based on section if not explicitly passed
+    let resolvedCategory = category ? category.toUpperCase().replace(' ', '_') : 'FRAMES';
+    if (section === 'Contact lens') {
+      resolvedCategory = 'CONTACT_LENS';
+    }
+
     const data = { 
       tenant_id: req.user.tenant_id,
       store_id: targetStoreId,
       barcode,
-      category: category ? category.toUpperCase().replace(' ', '_') : 'FRAMES',
-      brand,
+      category: resolvedCategory,
+      section: section || 'Eyevengers Classic',
+      brand: brand || (section && section.startsWith('Eyevengers') ? 'Eyevengers' : 'Eyevengers'),
       product_name: product_name || frame_name,
       color: color || frame_color,
       size,
