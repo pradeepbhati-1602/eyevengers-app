@@ -2,7 +2,8 @@ import { formatCurrency } from '../utils/formatCurrency';
 import React, { useState, useEffect } from 'react';
 import { 
   Search, Calendar, MapPin, Receipt, Gift, Eye, 
-  Wrench, Phone, MessageSquare, ExternalLink, CalendarDays, ArrowUpDown, Users, Award, Upload 
+  Wrench, Phone, MessageSquare, ExternalLink, CalendarDays, ArrowUpDown, Users, Award, Upload,
+  ArrowLeft, ShoppingBag, Sparkles
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import SmartCustomerImport from '../components/SmartCustomerImport';
@@ -343,7 +344,7 @@ export default function Customers({ tenant }) {
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
         
         {/* Left Pane: Search Table (2/5 cols) */}
-        <div className="lg:col-span-2 glass-card rounded-3xl p-5 flex flex-col min-h-[600px]">
+        <div className={`lg:col-span-2 glass-card rounded-3xl p-5 flex flex-col min-h-[600px] ${selectedCustomerId ? 'hidden lg:flex' : 'flex'}`}>
           
           {/* Search bar & Import */}
           <div className="flex items-center space-x-2 mb-4">
@@ -431,72 +432,93 @@ export default function Customers({ tenant }) {
         </div>
 
         {/* Right Pane: Profile View (3/5 cols) */}
-        <div className="lg:col-span-3">
+        <div className={`lg:col-span-3 ${selectedCustomerId ? 'block' : 'hidden lg:block'}`}>
           {loadingProfile ? (
             <div className="glass-card rounded-3xl p-6 min-h-[600px] flex flex-col items-center justify-center space-y-4">
               <div className="w-10 h-10 border-4 border-gold border-t-transparent rounded-full animate-spin"></div>
               <span className="text-xs text-gray-500 font-bold">LOADING CLIENT FILE...</span>
             </div>
           ) : selectedProfile ? (
-            <div className="glass-card rounded-3xl p-6 space-y-6 min-h-[600px] flex flex-col justify-between">
+            <div className="glass-card rounded-3xl p-5 sm:p-6 space-y-5 min-h-[600px] flex flex-col justify-between">
               
+              {/* Mobile Back Button */}
+              <button
+                onClick={() => setSelectedCustomerId(null)}
+                className="lg:hidden inline-flex items-center space-x-1.5 text-xs text-gold font-bold px-3 py-1.5 rounded-xl bg-gold/10 border border-gold/20 hover:bg-gold/20 transition-all w-fit"
+              >
+                <ArrowLeft className="w-3.5 h-3.5" />
+                <span>← Back to Customers List</span>
+              </button>
+
               {/* Header profile section */}
-              <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 border-b border-white/5 pb-5">
-                <div className="flex items-center space-x-4">
-                  <div className="w-14 h-14 bg-gradient-to-tr from-gold to-gold-light text-darkBg font-black text-xl flex items-center justify-center rounded-2xl uppercase">
+              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 border-b border-white/10 pb-5">
+                <div className="flex items-center space-x-3.5">
+                  <div className="w-14 h-14 bg-gradient-to-tr from-gold to-gold-light text-darkBg font-black text-xl flex items-center justify-center rounded-2xl uppercase shadow-lg shadow-gold/15 shrink-0">
                     {selectedProfile.customer.name.charAt(0)}
                   </div>
                   <div>
-                    <h2 className="text-xl font-extrabold text-white">{selectedProfile.customer.name}</h2>
+                    <h2 className="text-lg sm:text-xl font-black text-white tracking-tight">{selectedProfile.customer.name}</h2>
                     <span className="text-xs text-gray-400 font-mono flex items-center space-x-1.5 mt-0.5">
-                      <Phone className="w-3.5 h-3.5" />
+                      <Phone className="w-3.5 h-3.5 text-gold" />
                       <span>{selectedProfile.customer.mobile}</span>
                     </span>
                   </div>
                 </div>
 
                 {/* Instant Actions panel */}
-                <div className="flex items-center space-x-2 shrink-0">
+                <div className="flex items-center space-x-2 shrink-0 flex-wrap gap-y-2">
                   <button
                     onClick={handleDeleteCustomer}
-                    className="p-3 bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 rounded-xl border border-red-500/10 transition-all"
+                    className="p-2.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 rounded-xl border border-red-500/20 transition-all"
                     title="Delete Customer"
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                   </button>
                   <a
                     href={`tel:${selectedProfile.customer.mobile}`}
-                    className="p-3 bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white rounded-xl border border-white/5 transition-all"
+                    className="p-2.5 bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white rounded-xl border border-white/10 transition-all"
                     title="Place Call"
                   >
                     <Phone className="w-4 h-4" />
                   </a>
                   <button
                     onClick={() => startWhatsAppChat(selectedProfile.customer, 'general')}
-                    className="px-4 py-3 bg-green-600 hover:bg-green-700 text-white rounded-xl font-bold text-xs flex items-center space-x-1.5 transition-all"
+                    className="px-3.5 py-2.5 bg-gradient-to-r from-green-600 to-green-500 hover:from-green-500 hover:to-green-600 text-white rounded-xl font-bold text-xs flex items-center space-x-1.5 transition-all shadow-md shadow-green-600/20"
                   >
                     <MessageSquare className="w-4 h-4" />
-                    <span>WhatsApp Chat</span>
+                    <span>WhatsApp</span>
                   </button>
                 </div>
               </div>
 
               {/* Stats highlights block */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="bg-white/5 border border-white/5 p-4 rounded-2xl">
-                  <span className="text-[10px] text-gray-500 uppercase font-bold">Total Purchases</span>
-                  <h4 className="text-lg font-black text-white mt-1">{formatCurrency(selectedProfile.customer.total_purchase)}</h4>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 sm:gap-3">
+                <div className="bg-gradient-to-br from-white/[0.07] to-white/[0.02] border border-white/10 p-3 sm:p-3.5 rounded-2xl relative overflow-hidden">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] text-gray-400 uppercase font-bold tracking-wider">Total Purchase</span>
+                    <ShoppingBag className="w-3.5 h-3.5 text-blue-400" />
+                  </div>
+                  <h4 className="text-base sm:text-lg font-black text-white mt-1.5 font-mono">{formatCurrency(selectedProfile.customer.total_purchase)}</h4>
                 </div>
-                <div className="bg-white/5 border border-white/5 p-4 rounded-2xl">
-                  <span className="text-[10px] text-gray-500 uppercase font-bold">Total Bills</span>
-                  <h4 className="text-lg font-black text-white mt-1">{selectedProfile.customer.total_bills}</h4>
+                <div className="bg-gradient-to-br from-white/[0.07] to-white/[0.02] border border-white/10 p-3 sm:p-3.5 rounded-2xl relative overflow-hidden">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] text-gray-400 uppercase font-bold tracking-wider">Total Bills</span>
+                    <Receipt className="w-3.5 h-3.5 text-purple-400" />
+                  </div>
+                  <h4 className="text-base sm:text-lg font-black text-white mt-1.5 font-mono">{selectedProfile.customer.total_bills}</h4>
                 </div>
-                <div className="bg-white/5 border border-white/5 p-4 rounded-2xl">
-                  <span className="text-[10px] text-gray-500 uppercase font-bold">Cashback Balance</span>
-                  <h4 className="text-lg font-black text-gold mt-1">{formatCurrency(selectedProfile.customer.current_cashback)}</h4>
+                <div className="bg-gradient-to-br from-white/[0.07] to-white/[0.02] border border-white/10 p-3 sm:p-3.5 rounded-2xl relative overflow-hidden">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] text-gray-400 uppercase font-bold tracking-wider">Cashback</span>
+                    <Sparkles className="w-3.5 h-3.5 text-gold" />
+                  </div>
+                  <h4 className="text-base sm:text-lg font-black text-gold mt-1.5 font-mono">{formatCurrency(selectedProfile.customer.current_cashback)}</h4>
                 </div>
-                <div className="bg-white/5 border border-white/5 p-4 rounded-2xl">
-                  <span className="text-[10px] text-gray-500 uppercase font-bold">Last Visit</span>
+                <div className="bg-gradient-to-br from-white/[0.07] to-white/[0.02] border border-white/10 p-3 sm:p-3.5 rounded-2xl relative overflow-hidden">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] text-gray-400 uppercase font-bold tracking-wider">Last Visit</span>
+                    <Calendar className="w-3.5 h-3.5 text-emerald-400" />
+                  </div>
                   <h4 className="text-xs font-bold text-white mt-2 truncate">
                     {selectedProfile.customer.last_visit ? new Date(selectedProfile.customer.last_visit).toLocaleDateString() : 'Never'}
                   </h4>
@@ -504,65 +526,78 @@ export default function Customers({ tenant }) {
               </div>
 
               {/* Details & Logs tabs */}
-              <div className="flex-1 space-y-6 overflow-y-auto max-h-[350px] pr-1 pt-2">
+              <div className="flex-1 space-y-5 overflow-y-auto max-h-[550px] pr-1 pt-1">
                 
                 {/* Personal Bio */}
-                <div className="space-y-2">
-                  <h4 className="text-xs uppercase font-extrabold tracking-wider text-gold">Client Info</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs text-gray-400">
-                    <div>Birthday: <strong className="text-white">{selectedProfile.customer.birthday ? new Date(selectedProfile.customer.birthday).toLocaleDateString() : '-'}</strong></div>
-                    <div>Gender: <strong className="text-white">{selectedProfile.customer.gender || 'Other'}</strong></div>
-                    <div>Language: <strong className="text-white">{selectedProfile.customer.language}</strong></div>
-                    <div>Referral Code Used: <strong className="text-white">{selectedProfile.customer.referral_code_used || '-'}</strong></div>
-                    <div className="md:col-span-2">Address: <strong className="text-white">{selectedProfile.customer.address || '-'}</strong></div>
+                <div className="space-y-2.5">
+                  <div className="flex items-center space-x-2">
+                    <div className="w-6 h-6 rounded-lg bg-gold/10 flex items-center justify-center text-gold">
+                      <Users className="w-3.5 h-3.5" />
+                    </div>
+                    <h4 className="text-xs uppercase font-extrabold tracking-wider text-gold">Client Info</h4>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-gray-300 bg-white/[0.03] border border-white/5 rounded-2xl p-3.5">
+                    <div className="flex justify-between sm:justify-start sm:space-x-2"><span className="text-gray-500">Birthday:</span><strong className="text-white">{selectedProfile.customer.birthday ? new Date(selectedProfile.customer.birthday).toLocaleDateString() : '-'}</strong></div>
+                    <div className="flex justify-between sm:justify-start sm:space-x-2"><span className="text-gray-500">Gender:</span><strong className="text-white">{selectedProfile.customer.gender || 'Other'}</strong></div>
+                    <div className="flex justify-between sm:justify-start sm:space-x-2"><span className="text-gray-500">Language:</span><strong className="text-white">{selectedProfile.customer.language}</strong></div>
+                    <div className="flex justify-between sm:justify-start sm:space-x-2"><span className="text-gray-500">Referral Code:</span><strong className="text-white font-mono">{selectedProfile.customer.referral_code_used || '-'}</strong></div>
+                    <div className="sm:col-span-2 flex justify-between sm:justify-start sm:space-x-2 border-t border-white/5 pt-2 mt-0.5"><span className="text-gray-500">Address:</span><strong className="text-white">{selectedProfile.customer.address || '-'}</strong></div>
                   </div>
                 </div>
 
                 {/* Feature 14: Paid Membership Details */}
                 {hasFeature('membership_system') && (
-                <div className="space-y-2 pt-2 border-t border-white/5">
-                  <h4 className="text-xs uppercase font-extrabold tracking-wider text-gold flex items-center space-x-2">
-                    <Award className="w-4 h-4" />
-                    <span>Paid Membership Status</span>
-                  </h4>
+                <div className="space-y-2.5 pt-3 border-t border-white/10">
+                  <div className="flex items-center space-x-2">
+                    <div className="w-6 h-6 rounded-lg bg-gold/10 flex items-center justify-center text-gold">
+                      <Award className="w-3.5 h-3.5" />
+                    </div>
+                    <h4 className="text-xs uppercase font-extrabold tracking-wider text-gold">Paid Membership Status</h4>
+                  </div>
                   {activeMemb ? (
-                    <div className="p-3 bg-green-500/10 border border-green-500/20 text-green-400 rounded-xl space-y-1.5">
-                      <div className="flex items-center justify-between">
-                        <div>Active Plan: <strong className="text-white">{activeMemb.plan_name}</strong></div>
-                        <div className="flex space-x-2">
+                    <div className="p-4 bg-gradient-to-br from-green-500/10 to-transparent border border-green-500/20 text-green-400 rounded-2xl space-y-2.5">
+                      <div className="flex items-center justify-between flex-wrap gap-2">
+                        <div className="flex items-center space-x-2">
+                          <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
+                          <span className="text-xs text-gray-300">Active Plan:</span>
+                          <strong className="text-white font-bold text-sm">{activeMemb.plan_name}</strong>
+                        </div>
+                        <div className="flex items-center space-x-2">
                           <button
                             onClick={() => setShowUpgrade(!showUpgrade)}
-                            className="p-1 px-2 bg-gold/10 hover:bg-gold/20 text-gold rounded-lg hover:text-white transition-all text-[10px] font-bold"
+                            className="px-2.5 py-1 bg-gold/15 hover:bg-gold/25 border border-gold/30 text-gold rounded-xl transition-all text-[11px] font-bold"
                           >
                             Upgrade
                           </button>
                           <button
                             onClick={handleRevokeMembership}
-                            className="p-1 px-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg hover:text-white transition-all text-[10px] font-bold"
+                            className="px-2.5 py-1 bg-red-500/15 hover:bg-red-500/25 border border-red-500/30 text-red-400 rounded-xl transition-all text-[11px] font-bold"
                             title="Revoke Membership"
                           >
                             Revoke
                           </button>
                           <button
                             onClick={() => startMembershipRenewalReminder(selectedProfile.customer, activeMemb.plan_name, activeMemb.expiry_date)}
-                            className="p-1 bg-green-600/10 hover:bg-green-600/20 text-green-400 rounded-lg hover:text-green-300 transition-all shrink-0"
+                            className="p-1.5 bg-green-600/20 hover:bg-green-600/30 border border-green-600/30 text-green-400 rounded-xl transition-all"
                             title="WhatsApp Renewal Reminder"
                           >
                             <MessageSquare className="w-3.5 h-3.5" />
                           </button>
                         </div>
                       </div>
-                      <div className="text-[10px]">Benefits: {activeMemb.discount_percent}% Off automatically applied on checkout</div>
-                      <div className="text-[10px]">Valid Until: {new Date(activeMemb.expiry_date).toLocaleDateString()}</div>
+                      <div className="text-[11px] text-gray-400 flex items-center space-x-4 flex-wrap gap-y-1">
+                        <span>Benefits: <strong className="text-white">{activeMemb.discount_percent}% Off</strong> checkout</span>
+                        <span>Valid Until: <strong className="text-white">{new Date(activeMemb.expiry_date).toLocaleDateString()}</strong></span>
+                      </div>
                       
                       {showUpgrade && (
                         <div className="mt-3 pt-3 border-t border-green-500/20 flex flex-col space-y-2">
                           <p className="text-[10px] text-gray-300">Select a new plan to upgrade to. You will only be charged the price difference.</p>
-                          <div className="flex items-center space-x-2">
+                          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                             <select
                               value={selectedUpgradePlanId}
                               onChange={(e) => setSelectedUpgradePlanId(e.target.value)}
-                              className="flex-1 bg-darkBg text-white border border-white/10 rounded-xl px-2 py-1.5 text-xs focus:ring-0 focus:outline-none"
+                              className="flex-1 bg-darkBg text-white border border-white/10 rounded-xl px-3 py-2 text-xs focus:ring-0 focus:outline-none"
                             >
                               <option value="">Select Upgrade Plan...</option>
                               {plans.filter(p => p.plan_id !== activeMemb.plan_id).map(p => (
@@ -572,7 +607,7 @@ export default function Customers({ tenant }) {
                             <button
                               onClick={handleUpgradeMembership}
                               disabled={!selectedUpgradePlanId || upgradingPlan}
-                              className="px-3 py-1.5 bg-gold text-darkBg font-bold rounded-xl text-xs hover:opacity-90 transition-all shrink-0"
+                              className="px-4 py-2 bg-gold text-darkBg font-bold rounded-xl text-xs hover:opacity-90 transition-all shrink-0"
                             >
                               {upgradingPlan ? 'Upgrading...' : 'Confirm'}
                             </button>
@@ -581,13 +616,13 @@ export default function Customers({ tenant }) {
                       )}
                     </div>
                   ) : (
-                    <div className="p-3 bg-white/5 border border-white/5 rounded-xl space-y-2">
-                      <p className="text-[10px] text-gray-400">No active club membership for this client account.</p>
-                      <div className="flex items-center space-x-2">
+                    <div className="p-3.5 sm:p-4 bg-gradient-to-br from-white/[0.05] to-transparent border border-white/10 rounded-2xl space-y-3">
+                      <p className="text-xs text-gray-400">No active club membership for this client account.</p>
+                      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                         <select
                           value={selectedPlanId}
                           onChange={(e) => setSelectedPlanId(e.target.value)}
-                          className="flex-1 bg-darkBg text-white border border-white/10 rounded-xl px-2 py-1.5 text-xs focus:ring-0 focus:outline-none"
+                          className="flex-1 bg-darkBg text-white border border-white/10 rounded-xl px-3 py-2 text-xs focus:ring-0 focus:outline-none"
                         >
                           <option value="">Enroll in Club Plan...</option>
                           {plans.map(p => (
@@ -597,7 +632,7 @@ export default function Customers({ tenant }) {
                         <button
                           onClick={handlePurchaseMembership}
                           disabled={!selectedPlanId || buyingPlan}
-                          className="px-3 py-1.5 bg-gold text-darkBg font-bold rounded-xl text-xs hover:opacity-90 transition-all shrink-0 font-bold"
+                          className="px-4 py-2 bg-gradient-to-r from-gold to-gold-light text-darkBg font-black rounded-xl text-xs hover:opacity-90 transition-all shrink-0 shadow-md shadow-gold/10"
                         >
                           {buyingPlan ? 'Enrolling...' : 'Buy Plan'}
                         </button>
@@ -608,16 +643,21 @@ export default function Customers({ tenant }) {
                 )}
 
                 {/* Unified Activity Timeline */}
-                <div className="space-y-2">
-                  <h4 className="text-xs uppercase font-extrabold tracking-wider text-gold flex items-center justify-between">
+                <div className="space-y-3 pt-3 border-t border-white/10">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
                     <div className="flex items-center space-x-2">
-                      <Receipt className="w-4 h-4" />
-                      <span>Activity Timeline</span>
+                      <div className="w-6 h-6 rounded-lg bg-gold/10 flex items-center justify-center text-gold">
+                        <Receipt className="w-3.5 h-3.5" />
+                      </div>
+                      <h4 className="text-xs uppercase font-extrabold tracking-wider text-gold">Activity Timeline</h4>
+                      <span className="px-2 py-0.5 rounded-full bg-white/5 border border-white/10 text-[10px] font-bold text-gray-400">
+                        {activities.length}
+                      </span>
                     </div>
                     <select
                       value={billFilter}
                       onChange={(e) => setBillFilter(e.target.value)}
-                      className="bg-darkBg text-white border border-white/10 rounded px-2 py-1 text-[10px] focus:ring-0 focus:outline-none ml-2 font-normal normal-case"
+                      className="bg-darkBg text-white border border-white/10 rounded-xl px-2.5 py-1.5 text-xs focus:ring-0 focus:outline-none font-normal"
                     >
                       <option value="All">All Types</option>
                       <option value="Bills">Prescription/Regular</option>
@@ -626,110 +666,192 @@ export default function Customers({ tenant }) {
                       <option value="Repair">Repairs</option>
                       <option value="Referral">Referrals</option>
                     </select>
-                  </h4>
+                  </div>
                   {activities.length > 0 ? (
-                    <div className="space-y-2">
+                    <div className="space-y-2.5">
                       {activities.map(act => (
-                        <div key={act._type + '_' + (act.id || act.eyetest_id || act.repair_id || act.referral_id)} className="p-3 bg-white/5 border border-white/5 rounded-xl flex justify-between items-center text-xs">
+                        <div key={act._type + '_' + (act.id || act.eyetest_id || act.repair_id || act.referral_id)} className="p-3.5 bg-gradient-to-br from-white/[0.06] to-white/[0.02] border border-white/10 rounded-2xl hover:border-white/20 transition-all duration-200 space-y-2.5">
                           {act._type === 'Bills' || act._type === 'Sunglasses' ? (
                             <>
-                              <div>
-                                <span className="font-extrabold text-white">{act.invoice_number || act.id}</span>
-                                {act.store_name && (
-                                  <span className="ml-2 px-1.5 py-0.5 bg-gold/10 border border-gold/20 text-gold text-[8px] font-bold rounded">
-                                    {act.store_name}
+                              <div className="flex items-center justify-between gap-2 flex-wrap">
+                                <div className="flex items-center space-x-2 flex-wrap gap-y-1">
+                                  <span className="font-mono font-bold text-white text-xs bg-white/5 px-2 py-0.5 rounded-lg border border-white/10">
+                                    {act.invoice_number || act.id}
                                   </span>
-                                )}
-                                <span className="text-gray-500 text-[10px] ml-2">{act.date.toLocaleDateString()}</span>
-                                <span className="ml-2 px-1.5 py-0.5 bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[8px] font-bold rounded">{act._type}</span>
-                                {act.warranty_expiry_date && (
-                                  <span className={`ml-2 px-1.5 py-0.5 text-[8px] font-bold rounded ${
-                                    new Date(act.warranty_expiry_date) < new Date() 
-                                      ? 'bg-red-500/10 border border-red-500/20 text-red-400' 
-                                      : 'bg-green-500/10 border border-green-500/20 text-green-400'
-                                  }`}>
-                                    Warranty: {new Date(act.warranty_expiry_date).toLocaleDateString()}
+                                  <span className="text-gray-400 text-[11px]">{act.date.toLocaleDateString()}</span>
+                                  {act.store_name && (
+                                    <span className="px-1.5 py-0.5 bg-gold/10 border border-gold/20 text-gold text-[9px] font-bold rounded-md whitespace-nowrap">
+                                      {act.store_name}
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="flex items-center space-x-1.5 shrink-0">
+                                  <span className="px-2 py-0.5 bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[9px] font-bold rounded-md whitespace-nowrap">
+                                    {act._type}
                                   </span>
-                                )}
-                                <p className="text-[10px] text-gray-400 mt-0.5">{act.brand} {act.frame_name || 'Walk-in item'}</p>
+                                  {act.warranty_expiry_date && (
+                                    <span className={`px-2 py-0.5 text-[9px] font-bold rounded-md whitespace-nowrap ${
+                                      new Date(act.warranty_expiry_date) < new Date() 
+                                        ? 'bg-red-500/10 border border-red-500/20 text-red-400' 
+                                        : 'bg-green-500/10 border border-green-500/20 text-green-400'
+                                    }`}>
+                                      Warranty: {new Date(act.warranty_expiry_date).toLocaleDateString()}
+                                    </span>
+                                  )}
+                                </div>
                               </div>
-                              <div className="text-right flex items-center space-x-3">
-                                <div>
-                                  <span className="font-bold text-white block">{formatCurrency(act.total_amount)}</span>
+
+                              <p className="text-xs text-gray-300">
+                                {act.brand ? <strong className="text-white font-medium">{act.brand} </strong> : null}
+                                {act.frame_name || 'Optical Item / Service'}
+                              </p>
+
+                              <div className="flex items-center justify-between pt-2 border-t border-white/5 gap-2">
+                                <div className="flex items-baseline space-x-2">
+                                  <span className="text-sm font-black text-white font-mono">{formatCurrency(act.total_amount)}</span>
                                   {act.due_amount > 0 && (
                                     <button 
                                       onClick={() => startWhatsAppChat(selectedProfile.customer, 'payment', { due: act.due_amount })}
-                                      className="text-[9px] text-red-400 underline font-semibold mt-0.5 hover:text-red-300"
+                                      className="text-[10px] text-red-400 font-bold bg-red-500/10 border border-red-500/20 px-2 py-0.5 rounded-md hover:bg-red-500/20 transition-all"
                                     >
                                       Due: {formatCurrency(act.due_amount)} 📢
                                     </button>
                                   )}
                                 </div>
-                                <a 
-                                  href={`https://wa.me/91${selectedProfile.customer.mobile}?text=${encodeURIComponent(`Hi ${selectedProfile.customer.name}, your bill/invoice (${act.invoice_number || act.id}) for Rs. ${act.total_amount} is available. Thank you for visiting ${tenant?.business_name || 'us'}!`)}`}
-                                  target="_blank" 
-                                  rel="noreferrer" 
-                                  className="p-1.5 bg-green-600/20 hover:bg-green-600/40 rounded-lg text-green-400 hover:text-green-300 ml-2" 
-                                  title="Share Invoice on WhatsApp"
-                                >
-                                  <MessageSquare className="w-3.5 h-3.5" />
-                                </a>
-                                <a href={`/api/v1/public/bills/${act.id}/pdf`} target="_blank" rel="noreferrer" className="p-1.5 bg-white/5 hover:bg-white/10 rounded-lg text-gray-400 hover:text-white ml-2" title="View Invoice">
-                                  <ExternalLink className="w-3.5 h-3.5" />
-                                </a>
+                                
+                                <div className="flex items-center space-x-2 shrink-0">
+                                  <a 
+                                    href={`https://wa.me/91${selectedProfile.customer.mobile}?text=${encodeURIComponent(`Hi ${selectedProfile.customer.name}, your bill/invoice (${act.invoice_number || act.id}) for Rs. ${act.total_amount} is available. Thank you for visiting ${tenant?.business_name || 'us'}!`)}`}
+                                    target="_blank" 
+                                    rel="noreferrer" 
+                                    className="px-2.5 py-1.5 bg-green-500/15 hover:bg-green-500/30 text-green-400 border border-green-500/30 rounded-xl text-xs font-bold flex items-center space-x-1.5 transition-all shadow-sm" 
+                                    title="Share Invoice on WhatsApp"
+                                  >
+                                    <MessageSquare className="w-3.5 h-3.5" />
+                                    <span className="text-[10px]">WhatsApp</span>
+                                  </a>
+                                  <a 
+                                    href={`/api/v1/public/bills/${act.id}/pdf`} 
+                                    target="_blank" 
+                                    rel="noreferrer" 
+                                    className="px-2.5 py-1.5 bg-white/10 hover:bg-white/20 text-white border border-white/15 rounded-xl text-xs font-bold flex items-center space-x-1.5 transition-all shadow-sm" 
+                                    title="View Invoice PDF"
+                                  >
+                                    <ExternalLink className="w-3.5 h-3.5" />
+                                    <span className="text-[10px]">Invoice</span>
+                                  </a>
+                                </div>
                               </div>
                             </>
                           ) : act._type === 'Eye Test' ? (
                             <>
-                              <div>
-                                <span className="font-bold text-white">{act.vision_category} Vision Test</span>
-                                {act.store_name && (
-                                  <span className="ml-2 px-1.5 py-0.5 bg-gold/10 border border-gold/20 text-gold text-[8px] font-bold rounded">
-                                    {act.store_name}
-                                  </span>
-                                )}
-                                <span className="text-gray-500 text-[10px] ml-2">{act.date.toLocaleDateString()}</span>
-                                <span className="ml-2 px-1.5 py-0.5 bg-purple-500/10 border border-purple-500/20 text-purple-400 text-[8px] font-bold rounded">Eye Test</span>
-                                <p className="text-[10px] text-gray-400 mt-0.5">RE SPH: {act.re_sph || '0.00'} • LE SPH: {act.le_sph || '0.00'}</p>
+                              <div className="flex items-center justify-between gap-2 flex-wrap">
+                                <div className="flex items-center space-x-2 flex-wrap gap-y-1">
+                                  <span className="font-bold text-white text-xs">{act.vision_category || 'Clinical'} Vision Test</span>
+                                  <span className="text-gray-400 text-[11px]">{act.date.toLocaleDateString()}</span>
+                                  {act.store_name && (
+                                    <span className="px-1.5 py-0.5 bg-gold/10 border border-gold/20 text-gold text-[9px] font-bold rounded-md whitespace-nowrap">
+                                      {act.store_name}
+                                    </span>
+                                  )}
+                                </div>
+                                <span className="px-2 py-0.5 bg-purple-500/10 border border-purple-500/20 text-purple-400 text-[9px] font-bold rounded-md whitespace-nowrap">
+                                  Eye Test
+                                </span>
                               </div>
-                              {act.prescription_pdf_url && (
-                                <a href={act.prescription_pdf_url} target="_blank" rel="noreferrer" className="p-1.5 bg-white/5 hover:bg-white/10 rounded-lg text-gray-400 hover:text-white" title="View Prescription">
-                                  <ExternalLink className="w-3.5 h-3.5" />
-                                </a>
-                              )}
+
+                              {/* Power Pill display */}
+                              <div className="flex items-center gap-2 flex-wrap text-[11px] font-mono">
+                                <div className="px-2.5 py-1 bg-white/5 border border-white/10 rounded-lg text-gray-200">
+                                  <span className="text-gold font-bold mr-1">R.E:</span>
+                                  SPH {act.re_sph ? (parseFloat(act.re_sph) > 0 ? '+' : '') + parseFloat(act.re_sph).toFixed(2) : '0.00'}
+                                  {act.re_cyl ? ` • CYL ${(parseFloat(act.re_cyl) > 0 ? '+' : '') + parseFloat(act.re_cyl).toFixed(2)}` : ''}
+                                  {act.re_axis ? ` (${act.re_axis}°)` : ''}
+                                </div>
+                                <div className="px-2.5 py-1 bg-white/5 border border-white/10 rounded-lg text-gray-200">
+                                  <span className="text-gold font-bold mr-1">L.E:</span>
+                                  SPH {act.le_sph ? (parseFloat(act.le_sph) > 0 ? '+' : '') + parseFloat(act.le_sph).toFixed(2) : '0.00'}
+                                  {act.le_cyl ? ` • CYL ${(parseFloat(act.le_cyl) > 0 ? '+' : '') + parseFloat(act.le_cyl).toFixed(2)}` : ''}
+                                  {act.le_axis ? ` (${act.le_axis}°)` : ''}
+                                </div>
+                              </div>
+
+                              <div className="flex items-center justify-between pt-2 border-t border-white/5">
+                                <span className="text-[10px] text-gray-400 font-medium">Diagnostic Prescription</span>
+                                {act.prescription_pdf_url ? (
+                                  <a 
+                                    href={act.prescription_pdf_url} 
+                                    target="_blank" 
+                                    rel="noreferrer" 
+                                    className="px-2.5 py-1.5 bg-purple-500/15 hover:bg-purple-500/30 text-purple-300 border border-purple-500/30 rounded-xl text-xs font-bold flex items-center space-x-1.5 transition-all shadow-sm"
+                                    title="View Prescription PDF"
+                                  >
+                                    <ExternalLink className="w-3.5 h-3.5" />
+                                    <span className="text-[10px]">Prescription PDF</span>
+                                  </a>
+                                ) : (
+                                  <a 
+                                    href={`/api/v1/public/eye-tests/${act.id || act.eyetest_id}/pdf`} 
+                                    target="_blank" 
+                                    rel="noreferrer" 
+                                    className="px-2.5 py-1.5 bg-purple-500/15 hover:bg-purple-500/30 text-purple-300 border border-purple-500/30 rounded-xl text-xs font-bold flex items-center space-x-1.5 transition-all shadow-sm"
+                                    title="View Prescription PDF"
+                                  >
+                                    <ExternalLink className="w-3.5 h-3.5" />
+                                    <span className="text-[10px]">Prescription PDF</span>
+                                  </a>
+                                )}
+                              </div>
                             </>
                           ) : act._type === 'Repair' ? (
                             <>
-                              <div>
-                                <span className="font-bold text-white">{act.frame_details}</span>
-                                {act.store_name && (
-                                  <span className="ml-2 px-1.5 py-0.5 bg-gold/10 border border-gold/20 text-gold text-[8px] font-bold rounded">
-                                    {act.store_name}
+                              <div className="flex items-center justify-between gap-2 flex-wrap">
+                                <div className="flex items-center space-x-2 flex-wrap gap-y-1">
+                                  <span className="font-bold text-white text-xs">{act.frame_details}</span>
+                                  <span className="text-gray-400 text-[11px]">{act.date.toLocaleDateString()}</span>
+                                  {act.store_name && (
+                                    <span className="px-1.5 py-0.5 bg-gold/10 border border-gold/20 text-gold text-[9px] font-bold rounded-md whitespace-nowrap">
+                                      {act.store_name}
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="flex items-center space-x-1.5">
+                                  <span className="px-2 py-0.5 bg-orange-500/10 border border-orange-500/20 text-orange-400 text-[9px] font-bold rounded-md whitespace-nowrap">
+                                    Repair
                                   </span>
-                                )}
-                                <span className="text-gray-500 text-[10px] ml-2">{act.date.toLocaleDateString()}</span>
-                                <span className="ml-2 px-1.5 py-0.5 bg-orange-500/10 border border-orange-500/20 text-orange-400 text-[8px] font-bold rounded">Repair</span>
-                                <p className="text-[10px] text-gray-400 mt-0.5">Exp: {new Date(act.expected_date).toLocaleDateString()} • Charges: {formatCurrency(act.charges)}</p>
+                                  <span className={`px-2 py-0.5 rounded-md text-[9px] font-bold uppercase whitespace-nowrap ${
+                                    act.repair_status === 'Delivered' ? 'bg-green-500/10 text-green-400 border border-green-500/20' :
+                                    act.repair_status === 'Ready' ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' :
+                                    'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20'
+                                  }`}>
+                                    {act.repair_status}
+                                  </span>
+                                </div>
                               </div>
-                              <span className={`px-2 py-0.5 rounded text-[8px] font-bold uppercase ${
-                                act.repair_status === 'Delivered' ? 'bg-green-500/10 text-green-400 border border-green-500/20' :
-                                act.repair_status === 'Ready' ? 'bg-electric/10 text-electric border border-electric/20' :
-                                'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20'
-                              }`}>
-                                {act.repair_status}
-                              </span>
+
+                              <div className="flex items-center justify-between pt-2 border-t border-white/5">
+                                <span className="text-xs text-gray-400">
+                                  Expected: <strong className="text-white">{new Date(act.expected_date).toLocaleDateString()}</strong>
+                                </span>
+                                <span className="text-xs font-bold text-white font-mono">
+                                  {formatCurrency(act.charges)}
+                                </span>
+                              </div>
                             </>
                           ) : act._type === 'Referral' ? (
                             <>
-                              <div>
-                                <span className="font-bold text-white">Joined Referral Program</span>
-                                <span className="text-gray-500 text-[10px] ml-2">{act.date.toLocaleDateString()}</span>
-                                <span className="ml-2 px-1.5 py-0.5 bg-green-500/10 border border-green-500/20 text-green-400 text-[8px] font-bold rounded">Referral</span>
-                                <p className="text-[10px] text-gray-400 mt-0.5">Code: {act.referral_code} • Referrals: {act.referral_count}</p>
+                              <div className="flex items-center justify-between gap-2 flex-wrap">
+                                <div className="flex items-center space-x-2">
+                                  <span className="font-bold text-white text-xs">Joined Referral Program</span>
+                                  <span className="text-gray-400 text-[11px]">{act.date.toLocaleDateString()}</span>
+                                </div>
+                                <span className="px-2 py-0.5 bg-green-500/10 border border-green-500/20 text-green-400 text-[9px] font-bold rounded-md whitespace-nowrap">
+                                  Referral
+                                </span>
                               </div>
-                              <div className="text-right">
-                                <span className="font-bold text-gold block">{formatCurrency(act.cashback_earned)} Earned</span>
-                                <span className="text-[9px] text-gray-400 block">{formatCurrency(act.cashback_used)} Used</span>
+                              <div className="flex items-center justify-between text-xs text-gray-300 pt-1">
+                                <span>Code: <strong className="font-mono text-gold font-bold">{act.referral_code}</strong></span>
+                                <span>Referrals: <strong className="text-white font-bold">{act.referral_count}</strong></span>
                               </div>
                             </>
                           ) : null}
@@ -737,18 +859,18 @@ export default function Customers({ tenant }) {
                       ))}
                     </div>
                   ) : (
-                    <p className="text-xs text-gray-500">No records found for the selected type.</p>
+                    <p className="text-xs text-gray-500 py-3 text-center">No records found for the selected type.</p>
                   )}
                 </div>
 
               </div>
 
               {/* Promo campaigns block */}
-              <div className="border-t border-white/5 pt-4 flex items-center justify-between gap-4">
-                <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">SMS/Promo Tools:</span>
+              <div className="border-t border-white/10 pt-4 flex items-center justify-between gap-4">
+                <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">SMS/Promo Tools:</span>
                 <button
                   onClick={() => startWhatsAppChat(selectedProfile.customer, 'offer')}
-                  className="px-3.5 py-2 border border-gold/20 hover:bg-gold/5 text-gold text-xs font-bold rounded-xl transition-all"
+                  className="px-4 py-2 border border-gold/30 hover:bg-gold/10 text-gold text-xs font-bold rounded-xl transition-all shadow-sm"
                 >
                   Send Promo Offer
                 </button>

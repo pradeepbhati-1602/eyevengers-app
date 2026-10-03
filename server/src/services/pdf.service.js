@@ -74,8 +74,35 @@ exports.generateInvoicePDF = async (bill, tenant) => {
       if (bill.referral_code) { doc.text(`Referral Code    : ${bill.referral_code}`, 40, y); y += 14; }
 
       // ── PRESCRIPTION DETAILS (If present) ──
-      const power = bill.power_details || {};
-      if (Object.keys(power).length > 0 && (power.re_sph || power.le_sph)) {
+      let power = bill.power_details;
+      if (!power && bill.source_eye_tests && bill.source_eye_tests.length > 0) {
+        const test = bill.source_eye_tests[0];
+        power = {
+          re_sph: test.re_sph !== null && test.re_sph !== undefined ? String(test.re_sph) : '0.00',
+          re_cyl: test.re_cyl !== null && test.re_cyl !== undefined ? String(test.re_cyl) : '0.00',
+          re_axis: test.re_axis !== null && test.re_axis !== undefined ? String(test.re_axis) : '-',
+          le_sph: test.le_sph !== null && test.le_sph !== undefined ? String(test.le_sph) : '0.00',
+          le_cyl: test.le_cyl !== null && test.le_cyl !== undefined ? String(test.le_cyl) : '0.00',
+          le_axis: test.le_axis !== null && test.le_axis !== undefined ? String(test.le_axis) : '-',
+          pd: test.pd !== null && test.pd !== undefined ? String(test.pd) : '-',
+          add: test.add_power !== null && test.add_power !== undefined ? String(test.add_power) : '-'
+        };
+      }
+
+      const hasValue = (v) => v !== undefined && v !== null && v !== '' && v !== '-' && v !== '0' && v !== '0.00' && v !== 0;
+      const hasAnyPower = power && typeof power === 'object' && Object.keys(power).length > 0 && (
+        hasValue(power.re_sph) ||
+        hasValue(power.re_cyl) ||
+        hasValue(power.re_axis) ||
+        hasValue(power.le_sph) ||
+        hasValue(power.le_cyl) ||
+        hasValue(power.le_axis) ||
+        hasValue(power.add) ||
+        hasValue(power.add_power) ||
+        hasValue(power.pd)
+      );
+
+      if (hasAnyPower) {
         y += 20;
         doc.font('Helvetica-Bold').fontSize(11).text('PRESCRIPTION DETAILS', 40, y);
         y += 15;
@@ -102,7 +129,7 @@ exports.generateInvoicePDF = async (bill, tenant) => {
           { text: power.re_sph || '0.00', x: 140, width: 60, align: 'center' },
           { text: power.re_cyl || '0.00', x: 210, width: 60, align: 'center' },
           { text: power.re_axis || '-', x: 280, width: 60, align: 'center' },
-          { text: power.add || '-', x: 350, width: 60, align: 'center' },
+          { text: power.add || power.add_power || '-', x: 350, width: 60, align: 'center' },
           { text: power.pd || '-', x: 420, width: 60, align: 'center' }
         ]);
         doc.moveTo(40, y + 20).lineTo(572, y + 20).stroke('#E5E7EB');
@@ -114,7 +141,7 @@ exports.generateInvoicePDF = async (bill, tenant) => {
           { text: power.le_sph || '0.00', x: 140, width: 60, align: 'center' },
           { text: power.le_cyl || '0.00', x: 210, width: 60, align: 'center' },
           { text: power.le_axis || '-', x: 280, width: 60, align: 'center' },
-          { text: power.add || '-', x: 350, width: 60, align: 'center' },
+          { text: power.add || power.add_power || '-', x: 350, width: 60, align: 'center' },
           { text: power.pd || '-', x: 420, width: 60, align: 'center' }
         ]);
         doc.moveTo(40, y + 20).lineTo(572, y + 20).stroke('#E5E7EB');

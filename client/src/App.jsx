@@ -179,7 +179,7 @@ function Layout({ user, tenant, onLogout, toast, showToast, stores = [], activeS
         </main>
 
         {/* Collapsible Mobile Navigation Bar (Bottom) */}
-        <nav className="lg:hidden fixed bottom-0 left-0 right-0 h-16 bg-darkSurface border-t border-white/5 flex items-center justify-around px-2 z-30 pb-safe">
+        <nav className="lg:hidden fixed bottom-0 left-0 right-0 h-16 bg-darkSurface/95 backdrop-blur-xl border-t border-white/10 flex items-center justify-around px-2 z-30 pb-safe shadow-2xl">
           {menuItems.slice(0, 5).map((item) => {
             const Icon = item.icon;
             const isActive = location.pathname === item.path;
@@ -187,18 +187,19 @@ function Layout({ user, tenant, onLogout, toast, showToast, stores = [], activeS
               <button
                 key={item.name}
                 onClick={() => handleNav(item.path)}
-                className={`flex flex-col items-center justify-center w-14 h-full space-y-0.5 text-[10px] font-medium transition-all ${
+                className={`flex flex-col items-center justify-center w-14 h-full space-y-0.5 text-[10px] font-medium transition-all relative ${
                   isActive ? 'text-gold font-bold' : 'text-gray-400 hover:text-white'
                 }`}
               >
-                <Icon className="w-5 h-5" />
+                <Icon className={`w-5 h-5 transition-transform duration-200 ${isActive ? 'scale-110 text-gold' : ''}`} />
                 <span className="truncate w-full text-center">{item.name.split(' ')[0]}</span>
+                {isActive && <span className="w-1.5 h-1 rounded-full bg-gold shadow-sm shadow-gold/50 absolute bottom-1"></span>}
               </button>
             );
           })}
           <button
             onClick={() => setMobileMenuOpen(true)}
-            className="flex flex-col items-center justify-center w-14 h-full space-y-0.5 text-[10px] font-medium text-gray-400"
+            className="flex flex-col items-center justify-center w-14 h-full space-y-0.5 text-[10px] font-medium text-gray-400 hover:text-white transition-all"
           >
             <Menu className="w-5 h-5" />
             <span>More</span>

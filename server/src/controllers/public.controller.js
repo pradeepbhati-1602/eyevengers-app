@@ -7,11 +7,25 @@ exports.downloadInvoicePDF = async (req, res) => {
     const { id } = req.params;
     const bill = await prisma.bill.findUnique({
       where: { id },
-      include: { customer: true }
+      include: { 
+        customer: true,
+        source_eye_tests: true
+      }
     });
 
     if (!bill) {
       return res.status(404).json({ error: 'Invoice not found' });
+    }
+
+    // Fallback: If bill.power_details is null and no source_eye_tests, fetch latest eye test for customer
+    if (!bill.power_details && (!bill.source_eye_tests || bill.source_eye_tests.length === 0)) {
+      const eyeTest = await prisma.eyeTest.findFirst({
+        where: { customer_id: bill.customer_id },
+        orderBy: { created_at: 'desc' }
+      });
+      if (eyeTest) {
+        bill.source_eye_tests = [eyeTest];
+      }
     }
 
     const tenant = await prisma.tenant.findUnique({ where: { tenant_id: bill.tenant_id } });

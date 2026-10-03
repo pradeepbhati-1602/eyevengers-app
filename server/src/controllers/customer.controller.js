@@ -392,6 +392,22 @@ exports.importSmart = async (req, res) => {
         }
 
         // 2. Handle Bill/Invoice Record
+        let newBill = null;
+        const hasPower = (c.re_sph !== undefined || c.re_cyl !== undefined || c.re_axis !== undefined ||
+                          c.le_sph !== undefined || c.le_cyl !== undefined || c.le_axis !== undefined ||
+                          c.pd !== undefined || c.add_power !== undefined);
+
+        const powerDetails = hasPower ? {
+          re_sph: c.re_sph ? (parseFloat(c.re_sph) > 0 ? '+' : '') + parseFloat(c.re_sph).toFixed(2) : '0.00',
+          re_cyl: c.re_cyl ? (parseFloat(c.re_cyl) > 0 ? '+' : '') + parseFloat(c.re_cyl).toFixed(2) : '0.00',
+          re_axis: c.re_axis ? String(c.re_axis) : '-',
+          le_sph: c.le_sph ? (parseFloat(c.le_sph) > 0 ? '+' : '') + parseFloat(c.le_sph).toFixed(2) : '0.00',
+          le_cyl: c.le_cyl ? (parseFloat(c.le_cyl) > 0 ? '+' : '') + parseFloat(c.le_cyl).toFixed(2) : '0.00',
+          le_axis: c.le_axis ? String(c.le_axis) : '-',
+          pd: c.pd ? String(c.pd) : '-',
+          add: c.add_power ? (parseFloat(c.add_power) > 0 ? '+' : '') + parseFloat(c.add_power).toFixed(2) : '-'
+        } : null;
+
         // If row has grand total or an invoice number, we generate a bill.
         if (targetStoreId && (c.total_amount !== undefined || c.invoice_number)) {
           const billTotal = parseFloat(c.total_amount) || 0;
@@ -411,7 +427,7 @@ exports.importSmart = async (req, res) => {
           let invNumber = c.invoice_number ? String(c.invoice_number) : `IMP-${Date.now()}-${Math.floor(Math.random()*1000)}`;
 
           // Create Bill
-          const newBill = await prisma.bill.create({
+          newBill = await prisma.bill.create({
             data: {
               tenant_id,
               store_id: targetStoreId,
@@ -425,7 +441,7 @@ exports.importSmart = async (req, res) => {
               delivery_status: 'DELIVERED', // Historical bills are usually delivered
               bill_status: 'ACTIVE',
               lens_details: lensDetails ? [lensDetails] : [],
-              power_details: null,
+              power_details: powerDetails,
               created_at: c.bill_date ? new Date(c.bill_date) : new Date()
             }
           });
@@ -443,7 +459,7 @@ exports.importSmart = async (req, res) => {
         }
 
         // 3. Handle Eye Test / Prescription
-        if (targetStoreId && (c.re_sph !== undefined || c.le_sph !== undefined)) {
+        if (targetStoreId && hasPower) {
           await prisma.eyeTest.create({
             data: {
               tenant_id,
@@ -460,6 +476,7 @@ exports.importSmart = async (req, res) => {
               le_axis: c.le_axis ? parseInt(c.le_axis) : null,
               pd: c.pd ? parseFloat(c.pd) : null,
               add_power: c.add_power ? parseFloat(c.add_power) : null,
+              converted_to_bill_id: newBill ? newBill.id : null,
               created_at: c.bill_date ? new Date(c.bill_date) : new Date()
             }
           });
