@@ -18,6 +18,10 @@ router.post('/users', requireTenantAuth, requireOwner, settingsController.create
 // DELETE /api/v1/settings/users/:id
 router.delete('/users/:id', requireTenantAuth, requireOwner, settingsController.deleteUser);
 
+// PUT /api/v1/settings/users/:id
+router.put('/users/:id', requireTenantAuth, requireOwner, settingsController.updateUser);
+router.patch('/users/:id', requireTenantAuth, requireOwner, settingsController.updateUser);
+
 // POST /api/v1/settings/users/:id/transfer-ownership
 router.post('/users/:id/transfer-ownership', requireTenantAuth, requireOwner, settingsController.transferOwnership);
 

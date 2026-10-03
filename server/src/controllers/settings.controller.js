@@ -155,6 +155,52 @@ exports.createUser = async (req, res) => {
   }
 };
 
+exports.updateUser = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { store_id, name, role, cross_store_read } = req.body;
+    const tenant_id = req.user.tenant_id;
+
+    const existingUser = await prisma.user.findFirst({
+      where: { id, tenant_id }
+    });
+
+    if (!existingUser) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const data = {};
+    if (name !== undefined) data.name = name;
+    if (role !== undefined) data.role = role === 'Owner' || role === 'OWNER' ? 'OWNER' : 'EMPLOYEE';
+    if (store_id !== undefined) data.store_id = store_id || null;
+    if (cross_store_read !== undefined) data.cross_store_read = Boolean(cross_store_read);
+
+    // If role is changed to OWNER, store_id becomes null
+    if (data.role === 'OWNER') {
+      data.store_id = null;
+    }
+
+    const updated = await prisma.user.update({
+      where: { id },
+      data,
+      include: { store: true }
+    });
+
+    res.json({
+      user_id: updated.id,
+      name: updated.name,
+      username: updated.email || updated.mobile,
+      role: updated.role === 'OWNER' ? 'Owner' : 'Employee',
+      store_id: updated.store_id,
+      store_name: updated.store?.store_name || null,
+      cross_store_read: updated.cross_store_read || false
+    });
+  } catch (err) {
+    console.error('Failed to update user:', err);
+    res.status(500).json({ error: err.message || 'Failed to update user' });
+  }
+};
+
 exports.deleteUser = async (req, res) => {
   try {
     const { id } = req.params;

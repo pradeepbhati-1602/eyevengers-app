@@ -95,22 +95,27 @@ router.get('/verify', requireTenantAuth, async (req, res) => {
   }
 
   try {
-    const tenant = await prisma.tenant.findUnique({
-      where: { tenant_id: req.user.tenant_id }
-    });
+    const [tenant, currentUser] = await Promise.all([
+      prisma.tenant.findUnique({ where: { tenant_id: req.user.tenant_id } }),
+      prisma.user.findUnique({ where: { id: req.user.id }, include: { store: true } })
+    ]);
 
     if (!tenant) {
       return res.status(401).json({ error: 'Tenant not found' });
     }
 
+    const effectiveUser = currentUser || req.user;
+    const isOwner = (effectiveUser.role === 'OWNER');
+
     res.json({
       user: {
-        id: req.user.id,
-        name: req.user.name,
-        email: req.user.email,
-        role: req.user.role === 'OWNER' ? 'Owner' : 'Employee',
-        store_id: req.user.store_id,
-        cross_store_read: req.user.cross_store_read
+        id: effectiveUser.id,
+        name: effectiveUser.name,
+        email: effectiveUser.email || effectiveUser.mobile,
+        role: isOwner ? 'Owner' : 'Employee',
+        store_id: effectiveUser.store_id,
+        store_name: effectiveUser.store?.store_name || null,
+        cross_store_read: effectiveUser.cross_store_read || false
       },
       tenant: {
         business_name: tenant.business_name,

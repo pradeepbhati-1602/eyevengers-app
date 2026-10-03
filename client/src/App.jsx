@@ -151,18 +151,33 @@ function Layout({ user, tenant, onLogout, toast, showToast, stores = [], activeS
             )}
             
             {stores.length > 0 && (
-              <select
-                value={activeStore}
-                onChange={(e) => setActiveStore(e.target.value)}
-                disabled={!(String(user.role).trim().toUpperCase() === 'OWNER' || user.cross_store_read)}
-                className="bg-gold/10 border border-gold/30 rounded-xl px-2 md:px-3 py-1.5 text-xs text-gold focus:outline-none focus:border-gold transition-all cursor-pointer font-bold shadow-lg shadow-gold/5 max-w-[120px] md:max-w-xs truncate appearance-none"
-                style={{ WebkitAppearance: 'none', paddingRight: '1rem' }}
-              >
-                {(String(user.role).trim().toUpperCase() === 'OWNER' || user.cross_store_read) && <option value="all" className="bg-darkBg text-white">All Locations</option>}
-                {stores.map(s => (
-                  <option key={s.store_id} value={s.store_id} className="bg-darkBg text-white">{s.store_name}</option>
-                ))}
-              </select>
+              <div className="flex items-center space-x-1.5">
+                <select
+                  value={activeStore}
+                  onChange={(e) => setActiveStore(e.target.value)}
+                  disabled={!(String(user?.role).trim().toUpperCase() === 'OWNER' || user?.cross_store_read)}
+                  className={`border rounded-xl px-2.5 md:px-3 py-1.5 text-xs focus:outline-none transition-all font-bold shadow-lg max-w-[130px] md:max-w-xs truncate ${
+                    (String(user?.role).trim().toUpperCase() === 'OWNER' || user?.cross_store_read)
+                      ? 'bg-gold/10 border-gold/30 text-gold focus:border-gold cursor-pointer shadow-gold/5'
+                      : 'bg-white/5 border-white/10 text-gray-300 cursor-default opacity-90'
+                  }`}
+                  style={{ WebkitAppearance: 'none' }}
+                >
+                  {(String(user?.role).trim().toUpperCase() === 'OWNER' || user?.cross_store_read) && (
+                    <option value="all" className="bg-darkBg text-white">All Locations</option>
+                  )}
+                  {stores.map(s => (
+                    <option key={s.store_id} value={s.store_id} className="bg-darkBg text-white">
+                      {s.store_name}
+                    </option>
+                  ))}
+                </select>
+                {String(user?.role).trim().toUpperCase() === 'EMPLOYEE' && !user?.cross_store_read && (
+                  <span className="hidden sm:inline-block px-2 py-0.5 rounded-md bg-blue-500/10 border border-blue-500/20 text-blue-300 text-[10px] font-bold">
+                    Branch Terminal
+                  </span>
+                )}
+              </div>
             )}
             <div className="hidden md:flex px-3 py-1 rounded-full bg-white/5 border border-white/5 text-xs text-gray-400 items-center space-x-1.5">
               <span className="w-2 h-2 rounded-full bg-green-500"></span>
@@ -332,7 +347,8 @@ export default function App() {
           if (Array.isArray(data)) {
             setStores(data);
             if (String(user.role).trim().toUpperCase() === 'EMPLOYEE') {
-              setActiveStore(user.store_id || 'store-main');
+              const matched = data.find(s => s.store_id === user.store_id) || data[0];
+              setActiveStore(matched ? matched.store_id : (user.store_id || ''));
             } else {
               setActiveStore('all');
             }

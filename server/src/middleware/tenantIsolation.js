@@ -1,7 +1,7 @@
 const jwt = require('jsonwebtoken');
 const { prisma } = require('../prisma');
 
-const requireTenantAuth = (req, res, next) => {
+const requireTenantAuth = async (req, res, next) => {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return res.status(401).json({ error: 'Authentication required' });
@@ -24,7 +24,26 @@ const requireTenantAuth = (req, res, next) => {
 
     req.user = decoded;
     req.tenant_id = decoded.tenant_id;
-    if (decoded.store_id) {
+
+    // Refresh dynamic store assignment and role directly from DB
+    if (decoded.id) {
+      try {
+        const freshUser = await prisma.user.findUnique({
+          where: { id: decoded.id },
+          select: { store_id: true, role: true, cross_store_read: true }
+        });
+        if (freshUser) {
+          req.user.store_id = freshUser.store_id;
+          req.user.role = freshUser.role;
+          req.user.cross_store_read = freshUser.cross_store_read;
+          req.store_id = freshUser.store_id;
+        } else if (decoded.store_id) {
+          req.store_id = decoded.store_id;
+        }
+      } catch (err) {
+        if (decoded.store_id) req.store_id = decoded.store_id;
+      }
+    } else if (decoded.store_id) {
       req.store_id = decoded.store_id;
     }
 

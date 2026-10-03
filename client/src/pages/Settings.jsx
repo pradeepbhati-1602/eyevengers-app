@@ -261,7 +261,7 @@ export default function SettingsPage({ user, tenant, stores = [], setStores = ()
           password, 
           name, 
           role, 
-          store_id: role === 'Employee' ? (employeeStoreId || (stores[0] && stores[0].store_id) || 'store-main') : null 
+          store_id: role === 'Employee' ? (employeeStoreId || (stores[0] && stores[0].store_id) || null) : null 
         })
       });
       const data = await res.json();
@@ -279,6 +279,28 @@ export default function SettingsPage({ user, tenant, stores = [], setStores = ()
       setErrorUser(err.message);
     } finally {
       setSubmittingUser(false);
+    }
+  };
+
+  const handleUpdateEmployeeStore = async (empId, newStoreId) => {
+    try {
+      const res = await fetch(`/api/v1/settings/users/${empId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({ store_id: newStoreId })
+      });
+      if (res.ok) {
+        fetchEmployees();
+      } else {
+        const err = await res.json();
+        alert(err.error || 'Failed to update store access');
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Error updating store assignment');
     }
   };
 
@@ -375,7 +397,7 @@ export default function SettingsPage({ user, tenant, stores = [], setStores = ()
 
   const handleToggleCrossStoreRead = async (empId, currentValue) => {
     try {
-      const res = await fetch(`/api/v1/settings/users/${empId}/permissions`, {
+      const res = await fetch(`/api/v1/settings/users/${empId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -750,13 +772,13 @@ export default function SettingsPage({ user, tenant, stores = [], setStores = ()
                   </select>
                 </div>
 
-                {role === 'Employee' && hasFeature('multi_store') && stores.length > 1 && (
+                {role === 'Employee' && stores.length > 0 && (
                   <div className="flex flex-col space-y-1">
-                    <label className="text-xs font-semibold text-gray-400">Assigned Store Location</label>
+                    <label className="text-xs font-semibold text-gray-400">Assigned Store Location *</label>
                     <select
                       value={employeeStoreId}
                       onChange={(e) => setEmployeeStoreId(e.target.value)}
-                      className="w-full py-2 px-3 text-xs"
+                      className="w-full py-2 px-3 text-xs bg-darkBg border border-white/10 rounded-xl text-white"
                       required
                     >
                       <option value="">Select Location...</option>
@@ -826,19 +848,36 @@ export default function SettingsPage({ user, tenant, stores = [], setStores = ()
                      </div>
                      
                      {emp.role === 'Employee' && (
-                       <div className="pt-2 border-t border-white/5 flex flex-col space-y-1.5">
-                         <div className="text-[10px] text-gray-400">
-                           Assigned: <strong className="text-white">{emp.store_name || 'Main Store'}</strong>
+                       <div className="pt-2 border-t border-white/5 flex flex-col space-y-2">
+                         <div className="flex items-center justify-between gap-2">
+                           <span className="text-[10px] text-gray-400 font-semibold">Store Access:</span>
+                           {stores.length > 0 ? (
+                             <select
+                               value={emp.store_id || ''}
+                               onChange={(e) => handleUpdateEmployeeStore(emp.user_id, e.target.value)}
+                               className="bg-darkBg border border-gold/40 text-gold font-bold rounded-lg px-2 py-1 text-[11px] focus:outline-none focus:border-gold cursor-pointer"
+                             >
+                               <option value="" disabled>Choose Store...</option>
+                               {stores.map(s => (
+                                 <option key={s.store_id} value={s.store_id} className="bg-darkSurface text-white">
+                                   {s.store_name}
+                                 </option>
+                               ))}
+                             </select>
+                           ) : (
+                             <span className="text-white font-bold text-[10px]">{emp.store_name || 'Main Branch'}</span>
+                           )}
                          </div>
-                         {hasFeature('multi_store') && stores.length > 1 && (
-                           <label className="flex items-center space-x-2 text-[10px] text-gray-300 cursor-pointer">
+                         
+                         {stores.length > 1 && (
+                           <label className="flex items-center space-x-2 text-[10px] text-gray-300 cursor-pointer pt-0.5">
                              <input
                                type="checkbox"
                                checked={!!emp.cross_store_read}
                                onChange={() => handleToggleCrossStoreRead(emp.user_id, emp.cross_store_read)}
                                className="rounded border-white/10 bg-darkBg text-gold focus:ring-0 focus:ring-offset-0"
                              />
-                             <span>Allow Cross-Store View</span>
+                             <span>Allow Cross-Store View (View All Branches)</span>
                            </label>
                          )}
                        </div>

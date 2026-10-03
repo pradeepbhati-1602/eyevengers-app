@@ -22,10 +22,12 @@ exports.getMetrics = async (req, res) => {
       prisma.bill.count({ where: { tenant_id, ...storeFilter, created_at: { gte: firstDayOfMonth } } }),
       prisma.bill.count({ where: { tenant_id, ...storeFilter } }),
       prisma.customer.count({ where: { tenant_id } }), // Customers are global
-      prisma.store.findMany({ where: { tenant_id }, select: { store_id: true, store_name: true } }),
-      prisma.bill.count({ where: { tenant_id, due_amount: { gt: 0 } } }), // Unfiltered
-      prisma.bill.aggregate({ _sum: { due_amount: true }, where: { tenant_id, due_amount: { gt: 0 } } }), // Unfiltered
-      prisma.bill.count({ where: { tenant_id, delivery_status: 'PENDING' } }), // Unfiltered
+      (req.user.role === 'OWNER' || req.user.cross_store_read)
+        ? prisma.store.findMany({ where: { tenant_id }, select: { store_id: true, store_name: true } })
+        : prisma.store.findMany({ where: { tenant_id, ...(storeFilter.store_id ? { store_id: storeFilter.store_id } : {}) }, select: { store_id: true, store_name: true } }),
+      prisma.bill.count({ where: { tenant_id, ...storeFilter, due_amount: { gt: 0 } } }),
+      prisma.bill.aggregate({ _sum: { due_amount: true }, where: { tenant_id, ...storeFilter, due_amount: { gt: 0 } } }),
+      prisma.bill.count({ where: { tenant_id, ...storeFilter, delivery_status: 'PENDING' } }),
       storeFilter.store_id 
         ? prisma.$queryRaw`SELECT COUNT(*) FROM products WHERE tenant_id = ${tenant_id} AND store_id = ${storeFilter.store_id} AND current_stock <= low_stock_alert AND status = 'ACTIVE'`
         : prisma.$queryRaw`SELECT COUNT(*) FROM products WHERE tenant_id = ${tenant_id} AND current_stock <= low_stock_alert AND status = 'ACTIVE'`,

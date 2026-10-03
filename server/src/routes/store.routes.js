@@ -6,11 +6,24 @@ const { requireTenantAuth, requireOwner } = require('../middleware/tenantIsolati
 // All store routes require tenant authentication
 router.use(requireTenantAuth);
 
-// 1. Get all stores for current tenant (both Owner and Employee can view)
+// 1. Get all stores for current tenant (Owner gets all, Employee gets assigned store)
 router.get('/', async (req, res) => {
   try {
+    const roleStr = String(req.user?.role || '').trim().toUpperCase();
+    let where = { tenant_id: req.user.tenant_id };
+
+    if (roleStr === 'EMPLOYEE' && !req.user.cross_store_read) {
+      const dbUser = await prisma.user.findUnique({
+        where: { id: req.user.id },
+        select: { store_id: true, cross_store_read: true }
+      });
+      if (dbUser && dbUser.store_id && !dbUser.cross_store_read) {
+        where.store_id = dbUser.store_id;
+      }
+    }
+
     const stores = await prisma.store.findMany({
-      where: { tenant_id: req.user.tenant_id },
+      where,
       orderBy: { created_at: 'asc' }
     });
     res.json(stores);
