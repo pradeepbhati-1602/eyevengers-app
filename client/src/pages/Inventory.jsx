@@ -186,8 +186,12 @@ export default function Inventory({ user, activeStore, stores = [] }) {
 
   const handleAddProduct = async (e) => {
     e.preventDefault();
-    if (!name || !sellingPrice) {
-      setError('Please fill in Model/Lens name and Selling Price');
+    if (!name) {
+      setError('Please fill in Model/Lens name');
+      return;
+    }
+    if ((productType !== 'LENS' || lensCategory === 'LENS_COATING') && !sellingPrice) {
+      setError('Please fill in Selling Price / Rate');
       return;
     }
     if (productType !== 'LENS' && !stock) {
@@ -216,6 +220,7 @@ export default function Inventory({ user, activeStore, stores = [] }) {
     }
 
     const autoBarcode = barcode.trim() || (productType === 'LENS' ? (lensCategory === 'LENS_TYPE' ? `LT-${Date.now().toString().slice(-6)}` : `LC-${Date.now().toString().slice(-6)}`) : `PRD-${Date.now().toString().slice(-6)}`);
+    const priceToSave = (productType === 'LENS' && lensCategory === 'LENS_TYPE') ? 0 : parseFloat(sellingPrice || 0);
 
     try {
       const res = await fetch('/api/v1/products', {
@@ -236,7 +241,7 @@ export default function Inventory({ user, activeStore, stores = [] }) {
           size: size.trim(),
           features: features.trim() || null,
           purchase_price: parseFloat(purchasePrice || 0),
-          selling_price: parseFloat(sellingPrice || 0),
+          selling_price: priceToSave,
           opening_stock: parseInt(stock || (productType === 'LENS' ? 999 : 0)),
           current_stock: parseInt(stock || (productType === 'LENS' ? 999 : 0)),
           low_stock_limit: parseInt(lowStockLimit || 5),
@@ -599,30 +604,45 @@ export default function Inventory({ user, activeStore, stores = [] }) {
                   <div className="grid grid-cols-2 gap-3">
                     <button
                       type="button"
-                      onClick={() => setLensCategory('LENS_TYPE')}
+                      onClick={() => {
+                        setLensCategory('LENS_TYPE');
+                        setSellingPrice('0');
+                      }}
                       className={`p-3 rounded-xl border text-left transition-all flex flex-col ${
                         lensCategory === 'LENS_TYPE'
                           ? 'bg-amber-500/20 border-amber-400 text-white font-bold ring-1 ring-amber-400/50'
                           : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'
                       }`}
                     >
-                      <span className="text-xs font-bold text-amber-300">1. Lens Type</span>
-                      <span className="text-[10px] text-gray-400 mt-0.5">Single Vision, Bifocal, Progressive, Blue Cut Zero Power</span>
+                      <span className="text-xs font-bold text-amber-300">1. Lens Type (₹0 / Type Only)</span>
+                      <span className="text-[10px] text-gray-400 mt-0.5">Single Vision, Bifocal, Progressive (No price required)</span>
                     </button>
 
                     <button
                       type="button"
-                      onClick={() => setLensCategory('LENS_COATING')}
+                      onClick={() => {
+                        setLensCategory('LENS_COATING');
+                        if (sellingPrice === '0') setSellingPrice('');
+                      }}
                       className={`p-3 rounded-xl border text-left transition-all flex flex-col ${
                         lensCategory === 'LENS_COATING'
                           ? 'bg-emerald-500/20 border-emerald-400 text-white font-bold ring-1 ring-emerald-400/50'
                           : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'
                       }`}
                     >
-                      <span className="text-xs font-bold text-emerald-300">2. Lens Coating</span>
-                      <span className="text-[10px] text-gray-400 mt-0.5">Anti-Glare ARC, Blue Block UV420, Photochromic, Crizal Rock</span>
+                      <span className="text-xs font-bold text-emerald-300">2. Lens Coating / Package (With Price & Features)</span>
+                      <span className="text-[10px] text-gray-400 mt-0.5">Blue Cut, Anti-Glare, Photochromic, Crizal (Lens + Coating Rate)</span>
                     </button>
                   </div>
+                  {lensCategory === 'LENS_TYPE' ? (
+                    <div className="text-[11px] text-amber-300/90 bg-amber-500/10 border border-amber-500/20 p-2.5 rounded-xl">
+                      💡 <strong>Lens Type sirf chashme ke design ke liye hai (jaise Single Vision, Bifocal, Progressive). Iska rate ₹0 rahega, actual rate Coating package me set hoga.</strong>
+                    </div>
+                  ) : (
+                    <div className="text-[11px] text-emerald-300/90 bg-emerald-500/10 border border-emerald-500/20 p-2.5 rounded-xl">
+                      💡 <strong>Isme pura lens + coating ka final rate daaliye (jaise Blue Cut ₹800, Photochromic ₹1500) aur features likhiye. Billing me yehi rate automatic select hoga.</strong>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -733,17 +753,31 @@ export default function Inventory({ user, activeStore, stores = [] }) {
                 />
               </div>
 
-              <div className="flex flex-col space-y-1">
-                <label className="text-xs font-semibold text-gray-400">Selling Price / Rate (₹) *</label>
-                <input
-                  type="text"
-                  placeholder="0"
-                  value={sellingPrice}
-                  onChange={(e) => setSellingPrice(e.target.value.replace(/\D/g, ''))}
-                  className="w-full py-2 px-3 text-xs"
-                  required
-                />
-              </div>
+              {productType === 'LENS' && lensCategory === 'LENS_TYPE' ? (
+                <div className="flex flex-col space-y-1">
+                  <label className="text-xs font-semibold text-gray-400">Rate / Price (₹)</label>
+                  <input
+                    type="text"
+                    value="₹0 (Free / Design Only)"
+                    disabled
+                    className="w-full py-2 px-3 text-xs bg-white/5 text-gray-400 cursor-not-allowed border border-white/5 rounded-xl"
+                  />
+                </div>
+              ) : (
+                <div className="flex flex-col space-y-1">
+                  <label className="text-xs font-semibold text-gray-400">
+                    {productType === 'LENS' ? 'Lens + Coating Package Rate (₹) *' : 'Selling Price / Rate (₹) *'}
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. 800"
+                    value={sellingPrice}
+                    onChange={(e) => setSellingPrice(e.target.value.replace(/\D/g, ''))}
+                    className="w-full py-2 px-3 text-xs"
+                    required
+                  />
+                </div>
+              )}
 
               {/* Stock */}
               {productType !== 'LENS' && (

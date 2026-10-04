@@ -856,42 +856,38 @@ export default function NewBill({ activeStore, triggerToast }) {
               return (
                 <div className="pt-2 border-t border-white/5 grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="flex flex-col space-y-1">
-                    <div className="flex items-center justify-between">
-                      <label className="text-xs font-semibold text-gray-400">1. Lens Type</label>
-                      {selType && (
-                        <span className="text-[10px] text-gold font-bold">{formatCurrency(selType.selling_price)}</span>
-                      )}
-                    </div>
+                    <label className="text-xs font-semibold text-gray-400">1. Lens Type (Design)</label>
                     <select value={lensType} onChange={(e) => handleLensSelection(e.target.value, lensCoating)} className="w-full">
                       <option value="">-- Select Lens Type --</option>
                       {products.filter(p => p.category === 'LENS_TYPE').map(p => (
                         <option key={p.product_id || p.id} value={p.product_id || p.id}>
-                          {p.brand} {p.product_name} - {formatCurrency(p.selling_price)}
+                          {p.product_name}
                         </option>
                       ))}
                       {products.filter(p => p.category === 'LENS_TYPE').length === 0 && (
                         <option disabled>No Lens Types found in inventory</option>
                       )}
                     </select>
-                    {selType?.features && (
-                      <div className="text-[10px] text-amber-300 bg-amber-500/10 border border-amber-500/20 px-2.5 py-1 rounded-lg mt-1">
-                        ✨ <strong>Features:</strong> {selType.features}
+                    {selType && (
+                      <div className="text-[10px] text-amber-300 bg-amber-500/10 border border-amber-500/20 px-2.5 py-1 rounded-lg mt-1 flex items-center justify-between">
+                        <span>✨ <strong>Design:</strong> {selType.product_name}</span>
+                        <span className="font-bold text-[9px] text-gray-400">Base Type</span>
                       </div>
                     )}
                   </div>
 
                   <div className="flex flex-col space-y-1">
                     <div className="flex items-center justify-between">
-                      <label className="text-xs font-semibold text-gray-400">2. Lens Coating</label>
+                      <label className="text-xs font-semibold text-gray-400">2. Lens Coating / Package</label>
                       {selCoating && (
                         <span className="text-[10px] text-gold font-bold">{formatCurrency(selCoating.selling_price)}</span>
                       )}
                     </div>
                     <select value={lensCoating} onChange={(e) => handleLensSelection(lensType, e.target.value)} className="w-full">
-                      <option value="">-- Select Lens Coating --</option>
+                      <option value="">-- Select Coating / Package --</option>
                       {products.filter(p => p.category === 'LENS_COATING').map(p => (
                         <option key={p.product_id || p.id} value={p.product_id || p.id}>
-                          {p.brand} {p.product_name} - {formatCurrency(p.selling_price)}
+                          {p.product_name} — {formatCurrency(p.selling_price)}
                         </option>
                       ))}
                       {products.filter(p => p.category === 'LENS_COATING').length === 0 && (
@@ -915,7 +911,7 @@ export default function NewBill({ activeStore, triggerToast }) {
                       className="w-full"
                     />
                     <span className="text-[10px] text-gray-500 mt-0.5">
-                      Auto-calculated from Type + Coating (editable)
+                      Auto-loaded from Coating package (editable)
                     </span>
                   </div>
                 </div>

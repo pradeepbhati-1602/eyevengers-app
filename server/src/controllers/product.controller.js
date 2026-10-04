@@ -87,7 +87,21 @@ exports.adjustStock = async (req, res) => {
 exports.getProducts = async (req, res) => {
   const { tenant_id } = req.user;
   const { category, section, search, store_id, is_paginated, page, limit } = req.query;
-  const where = { tenant_id: req.user.tenant_id, ...getStoreFilter(req), status: 'ACTIVE' };
+  const storeFilter = getStoreFilter(req);
+  const where = { tenant_id: req.user.tenant_id, status: 'ACTIVE' };
+  
+  if (storeFilter.store_id) {
+    if (category === 'LENS_TYPE' || category === 'LENS_COATING' || category === 'Lens Type' || category === 'Lens Coating') {
+      // Tenant-wide lens definitions
+    } else if (!category || category === 'All') {
+      where.OR = [
+        { store_id: storeFilter.store_id },
+        { category: { in: ['LENS_TYPE', 'LENS_COATING'] } }
+      ];
+    } else {
+      where.store_id = storeFilter.store_id;
+    }
+  }
   
   if (section && section !== 'All') {
     where.section = section;
