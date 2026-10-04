@@ -157,8 +157,8 @@ exports.generateInvoicePDF = async (bill, tenant) => {
       doc.rect(40, y, 532, 20).fill('#1A1C24');
       doc.fillColor('#FFFFFF').font('Helvetica-Bold').fontSize(9);
       const iCols = [
-        { text: 'Items Description', x: 50, width: 200 },
-        { text: 'Brand / Details', x: 260, width: 150 },
+        { text: 'Items Description', x: 50, width: 190 },
+        { text: 'Brand / Features', x: 245, width: 165 },
         { text: 'Rate', x: 420, width: 60, align: 'right' },
         { text: 'Total', x: 490, width: 70, align: 'right' }
       ];
@@ -172,8 +172,35 @@ exports.generateInvoicePDF = async (bill, tenant) => {
       const subtotal = Number(bill.subtotal || bill.total_amount);
       
       if (bill.items && Array.isArray(bill.items)) {
-        itemsToRender = bill.items;
-      } else {
+        itemsToRender = [...bill.items];
+      }
+
+      // Append lens details if present
+      let lensObj = bill.lens_details;
+      if (typeof lensObj === 'string') {
+        try { lensObj = JSON.parse(lensObj); } catch(e) {}
+      }
+
+      if (lensObj && (lensObj.type || lensObj.coating || Number(lensObj.price) > 0)) {
+        const parts = [];
+        if (lensObj.type) parts.push(`Lens: ${lensObj.type}`);
+        if (lensObj.coating) parts.push(`Coating: ${lensObj.coating}`);
+        const lensDesc = parts.length > 0 ? parts.join(' + ') : 'Spectacle Lenses';
+        
+        const featParts = [];
+        if (lensObj.type_features) featParts.push(lensObj.type_features);
+        if (lensObj.coating_features) featParts.push(lensObj.coating_features);
+        const featText = featParts.length > 0 ? featParts.join(' • ') : (lensObj.type_brand || lensObj.coating_brand || 'Prescription Lens');
+
+        itemsToRender.push({
+          product_name: lensDesc,
+          brand: featText,
+          price: Number(lensObj.price || 0),
+          qty: 1
+        });
+      }
+
+      if (itemsToRender.length === 0) {
         itemsToRender = [{
           product_name: bill.bill_type === 'REGULAR' ? 'Optical Frames & Lenses' : bill.bill_type === 'Sunglasses' ? 'Sunglasses' : 'Products & Services',
           brand: 'Standard',
@@ -187,8 +214,8 @@ exports.generateInvoicePDF = async (bill, tenant) => {
         const qty = Number(item.qty || 1);
         const total = rate * qty;
         drawTableRow(doc, y + 6, [
-          { text: item.product_name || 'Item', x: 50, width: 200 },
-          { text: item.brand || item.category || 'Standard', x: 260, width: 150 },
+          { text: item.product_name || 'Item', x: 50, width: 190 },
+          { text: item.brand || item.category || 'Standard', x: 245, width: 165 },
           { text: `${rate.toFixed(2)} x ${qty}`, x: 420, width: 60, align: 'right' },
           { text: total.toFixed(2), x: 490, width: 70, align: 'right' }
         ]);

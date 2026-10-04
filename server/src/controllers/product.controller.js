@@ -99,6 +99,12 @@ exports.getProducts = async (req, res) => {
         { section: 'Contact lens' },
         { category: 'CONTACT_LENS' }
       ];
+    } else if (category === 'Lens Type' || category === 'LENS_TYPE') {
+      where.category = 'LENS_TYPE';
+    } else if (category === 'Lens Coating' || category === 'LENS_COATING') {
+      where.category = 'LENS_COATING';
+    } else if (category === 'Sunglasses' || category === 'SUNGLASSES') {
+      where.category = 'SUNGLASSES';
     } else {
       where.category = category.toUpperCase().replace(' ', '_');
     }
@@ -127,6 +133,7 @@ exports.getProducts = async (req, res) => {
         product_id: prod.id,
         frame_name: prod.product_name,
         frame_color: prod.color,
+        features: prod.features || '',
         low_stock_limit: prod.low_stock_alert
       }));
       
@@ -149,6 +156,7 @@ exports.getProducts = async (req, res) => {
         section: true,
         color: true,
         size: true,
+        features: true,
         selling_price: true,
         current_stock: true,
         barcode: true,
@@ -161,6 +169,7 @@ exports.getProducts = async (req, res) => {
       product_id: prod.id,
       frame_name: prod.product_name,
       frame_color: prod.color,
+      features: prod.features || '',
       low_stock_limit: prod.low_stock_alert
     }));
     res.json(formattedProducts);
@@ -171,7 +180,7 @@ exports.createProduct = async (req, res) => {
   try {
     const { 
       barcode, category, section, brand, frame_name, product_name, 
-      color, frame_color, size, purchase_price, selling_price, 
+      color, frame_color, size, features, purchase_price, selling_price, 
       opening_stock, current_stock, low_stock_limit, low_stock_alert, supplier_name, supplier
     } = req.body;
 
@@ -182,26 +191,40 @@ exports.createProduct = async (req, res) => {
       targetStoreId = defaultStore.store_id;
     }
 
-    // Determine category based on section if not explicitly passed
+    // Determine category based on section or category
     let resolvedCategory = category ? category.toUpperCase().replace(' ', '_') : 'FRAMES';
-    if (section === 'Contact lens') {
+    if (category === 'LENS_TYPE' || category === 'Lens Type') {
+      resolvedCategory = 'LENS_TYPE';
+    } else if (category === 'LENS_COATING' || category === 'Lens Coating') {
+      resolvedCategory = 'LENS_COATING';
+    } else if (category === 'Sunglasses' || category === 'SUNGLASSES') {
+      resolvedCategory = 'SUNGLASSES';
+    } else if (section === 'Contact lens' || category === 'Contact Lens' || category === 'CONTACT_LENS') {
       resolvedCategory = 'CONTACT_LENS';
+    }
+
+    let finalBarcode = barcode;
+    if (!finalBarcode || finalBarcode.trim() === '') {
+      if (resolvedCategory === 'LENS_TYPE') finalBarcode = `LT-${Date.now().toString().slice(-6)}`;
+      else if (resolvedCategory === 'LENS_COATING') finalBarcode = `LC-${Date.now().toString().slice(-6)}`;
+      else finalBarcode = `PRD-${Date.now().toString().slice(-6)}`;
     }
 
     const data = { 
       tenant_id: req.user.tenant_id,
       store_id: targetStoreId,
-      barcode,
+      barcode: finalBarcode,
       category: resolvedCategory,
-      section: section || 'Eyevengers Classic',
-      brand: brand || (section && section.startsWith('Eyevengers') ? 'Eyevengers' : 'Eyevengers'),
+      section: section || (resolvedCategory === 'SUNGLASSES' ? 'Sunglasses' : (resolvedCategory.startsWith('LENS') ? 'Lenses' : 'Eyevengers Classic')),
+      brand: brand || (resolvedCategory === 'FRAMES' ? 'Eyevengers' : (resolvedCategory.startsWith('LENS') ? 'Standard' : 'Eyevengers')),
       product_name: product_name || frame_name,
       color: color || frame_color,
       size,
+      features: features || null,
       purchase_price: parseFloat(purchase_price || 0),
       selling_price: parseFloat(selling_price || 0),
-      opening_stock: parseInt(opening_stock || current_stock || 0),
-      current_stock: parseInt(current_stock || opening_stock || 0),
+      opening_stock: parseInt(opening_stock || current_stock || (resolvedCategory.startsWith('LENS') ? 999 : 0)),
+      current_stock: parseInt(current_stock || opening_stock || (resolvedCategory.startsWith('LENS') ? 999 : 0)),
       low_stock_alert: parseInt(low_stock_alert || low_stock_limit || 5),
       supplier_name: supplier_name || supplier
     };

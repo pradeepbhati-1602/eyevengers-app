@@ -10,7 +10,7 @@ import { useFeatures } from '../context/FeatureContext';
 export default function Inventory({ user, activeStore, stores = [] }) {
   const { hasFeature } = useFeatures();
   const [products, setProducts] = useState([]);
-  const [categories] = useState(['All', 'Eyevengers Classic', 'Eyevengers Premium', 'Contact Lens', 'Frames', 'Reading Glasses', 'Sunglasses', 'Accessories', 'Lens', 'Repair Parts']);
+  const [categories] = useState(['All', 'Eyevengers Classic', 'Eyevengers Premium', 'Sunglasses', 'Lens Type', 'Lens Coating', 'Contact Lens', 'Frames', 'Accessories']);
   const [activeCategory, setActiveCategory] = useState('All');
   const [search, setSearch] = useState('');
   const [lowStockFilter, setLowStockFilter] = useState(false);
@@ -20,6 +20,8 @@ export default function Inventory({ user, activeStore, stores = [] }) {
   
   // Add product form states
   const [showAddModal, setShowAddModal] = useState(false);
+  const [productType, setProductType] = useState('FRAME'); // 'FRAME', 'SUNGLASSES', 'LENS', 'CONTACT_LENS'
+  const [lensCategory, setLensCategory] = useState('LENS_TYPE'); // 'LENS_TYPE', 'LENS_COATING'
   const [barcode, setBarcode] = useState('');
   const [section, setSection] = useState('Eyevengers Classic');
   const [category, setCategory] = useState('Frames');
@@ -27,6 +29,7 @@ export default function Inventory({ user, activeStore, stores = [] }) {
   const [name, setName] = useState('');
   const [color, setColor] = useState('');
   const [size, setSize] = useState('');
+  const [features, setFeatures] = useState('');
   const [purchasePrice, setPurchasePrice] = useState('');
   const [sellingPrice, setSellingPrice] = useState('');
   const [stock, setStock] = useState('');
@@ -147,13 +150,35 @@ export default function Inventory({ user, activeStore, stores = [] }) {
     }
   };
 
+  const handleProductTypeChange = (type) => {
+    setProductType(type);
+    setError('');
+    if (type === 'FRAME') {
+      setSection('Eyevengers Classic');
+      setCategory('Frames');
+      setBrand('Eyevengers');
+      setStock('');
+    } else if (type === 'SUNGLASSES') {
+      setSection('Sunglasses');
+      setCategory('Sunglasses');
+      setBrand('');
+      setStock('');
+    } else if (type === 'LENS') {
+      setSection('Lenses');
+      setCategory(lensCategory);
+      setBrand('Vision');
+      setStock('999');
+    } else if (type === 'CONTACT_LENS') {
+      setSection('Contact lens');
+      setCategory('Contact Lens');
+      setBrand('Bausch & Lomb');
+      setStock('');
+    }
+  };
+
   const handleSectionSelect = (sec) => {
     setSection(sec);
-    if (sec === 'Contact lens') {
-      setCategory('Contact Lens');
-    } else {
-      setCategory('Frames');
-    }
+    setCategory('Frames');
     if (!brand || brand === 'Ray-Ban') {
       setBrand('Eyevengers');
     }
@@ -161,12 +186,36 @@ export default function Inventory({ user, activeStore, stores = [] }) {
 
   const handleAddProduct = async (e) => {
     e.preventDefault();
-    if (!barcode || !name || !purchasePrice || !sellingPrice || !stock) {
-      setError('Please fill in all mandatory fields');
+    if (!name || !sellingPrice) {
+      setError('Please fill in Model/Lens name and Selling Price');
       return;
     }
+    if (productType !== 'LENS' && !stock) {
+      setError('Please enter stock quantity');
+      return;
+    }
+
     setError('');
     setSubmitting(true);
+
+    let resolvedCategory = category;
+    let resolvedSection = section;
+
+    if (productType === 'FRAME') {
+      resolvedCategory = 'FRAMES';
+      resolvedSection = section;
+    } else if (productType === 'SUNGLASSES') {
+      resolvedCategory = 'SUNGLASSES';
+      resolvedSection = 'Sunglasses';
+    } else if (productType === 'LENS') {
+      resolvedCategory = lensCategory;
+      resolvedSection = 'Lenses';
+    } else if (productType === 'CONTACT_LENS') {
+      resolvedCategory = 'CONTACT_LENS';
+      resolvedSection = 'Contact lens';
+    }
+
+    const autoBarcode = barcode.trim() || (productType === 'LENS' ? (lensCategory === 'LENS_TYPE' ? `LT-${Date.now().toString().slice(-6)}` : `LC-${Date.now().toString().slice(-6)}`) : `PRD-${Date.now().toString().slice(-6)}`);
 
     try {
       const res = await fetch('/api/v1/products', {
@@ -176,20 +225,22 @@ export default function Inventory({ user, activeStore, stores = [] }) {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         },
         body: JSON.stringify({
-          barcode,
-          section,
-          category,
-          brand: brand || (section && section.startsWith('Eyevengers') ? 'Eyevengers' : 'Eyevengers'),
-          frame_name: name,
-          product_name: name,
-          frame_color: color,
-          color,
-          size,
-          purchase_price: parseFloat(purchasePrice),
-          selling_price: parseFloat(sellingPrice),
-          opening_stock: parseInt(stock),
-          low_stock_limit: parseInt(lowStockLimit),
-          supplier
+          barcode: autoBarcode,
+          section: resolvedSection,
+          category: resolvedCategory,
+          brand: brand.trim() || (productType === 'FRAME' ? 'Eyevengers' : (productType === 'LENS' ? 'Standard' : 'Eyevengers')),
+          frame_name: name.trim(),
+          product_name: name.trim(),
+          frame_color: color.trim(),
+          color: color.trim(),
+          size: size.trim(),
+          features: features.trim() || null,
+          purchase_price: parseFloat(purchasePrice || 0),
+          selling_price: parseFloat(sellingPrice || 0),
+          opening_stock: parseInt(stock || (productType === 'LENS' ? 999 : 0)),
+          current_stock: parseInt(stock || (productType === 'LENS' ? 999 : 0)),
+          low_stock_limit: parseInt(lowStockLimit || 5),
+          supplier: supplier.trim()
         })
       });
       const data = await res.json();
@@ -226,6 +277,8 @@ export default function Inventory({ user, activeStore, stores = [] }) {
   };
 
   const resetForm = () => {
+    setProductType('FRAME');
+    setLensCategory('LENS_TYPE');
     setBarcode('');
     setSection('Eyevengers Classic');
     setCategory('Frames');
@@ -233,6 +286,7 @@ export default function Inventory({ user, activeStore, stores = [] }) {
     setName('');
     setColor('');
     setSize('');
+    setFeatures('');
     setPurchasePrice('');
     setSellingPrice('');
     setStock('');
@@ -345,6 +399,11 @@ export default function Inventory({ user, activeStore, stores = [] }) {
                       <span className="text-xs font-semibold text-gold/90 mt-0.5 block">
                         {p.product_name || p.frame_name || '-'}
                       </span>
+                      {p.features && (
+                        <span className="text-[10px] text-gray-400 mt-0.5 block truncate max-w-xs">
+                          ✨ {p.features}
+                        </span>
+                      )}
                     </td>
                     <td className="py-4 pr-2">
                       <div className="flex flex-col space-y-1">
@@ -468,67 +527,128 @@ export default function Inventory({ user, activeStore, stores = [] }) {
             {/* Modal Form */}
             <form onSubmit={handleAddProduct} className="grid grid-cols-1 md:grid-cols-2 gap-4">
               
-              {/* 3 Main Product Sections */}
+              {/* Product Type Selector */}
               <div className="flex flex-col space-y-2 md:col-span-2">
                 <label className="text-xs font-bold text-gold tracking-wide uppercase flex items-center justify-between">
-                  <span>Product Section / Category *</span>
-                  <span className="text-[10px] text-gray-400 font-normal lowercase">choose store section</span>
+                  <span>Product Type *</span>
+                  <span className="text-[10px] text-gray-400 font-normal">Select what you are adding</span>
                 </label>
-                <div className="grid grid-cols-3 gap-2.5">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
                   {[
-                    { id: 'Eyevengers Classic', label: 'Eyevengers Classic', icon: '👓', desc: 'Classic Eyewear' },
-                    { id: 'Eyevengers Premium', label: 'Eyevengers Premium', icon: '💎', desc: 'Premium Luxury' },
-                    { id: 'Contact lens', label: 'Contact lens', icon: '👁️', desc: 'Contact Lenses' }
-                  ].map((sec) => (
+                    { id: 'FRAME', label: 'Optical Frame', icon: '👓', desc: 'Classic / Premium' },
+                    { id: 'SUNGLASSES', label: 'Sunglasses', icon: '🕶️', desc: 'Direct Brand & Rate' },
+                    { id: 'LENS', label: 'Spectacle Lens', icon: '🔍', desc: 'Type & Coating' },
+                    { id: 'CONTACT_LENS', label: 'Contact Lens', icon: '👁️', desc: 'Contact Pack' }
+                  ].map((t) => (
                     <button
-                      key={sec.id}
+                      key={t.id}
                       type="button"
-                      onClick={() => handleSectionSelect(sec.id)}
+                      onClick={() => handleProductTypeChange(t.id)}
                       className={`p-3 rounded-2xl border text-left transition-all flex flex-col justify-between ${
-                        section === sec.id
+                        productType === t.id
                           ? 'bg-gradient-to-br from-gold/20 via-gold/10 to-transparent border-gold shadow-lg shadow-gold/10 text-white ring-1 ring-gold/50'
                           : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10 hover:text-white'
                       }`}
                     >
-                      <div className="text-xl mb-1">{sec.icon}</div>
-                      <div className="font-extrabold text-xs leading-snug">{sec.label}</div>
-                      <div className="text-[9px] text-gray-500 mt-0.5">{sec.desc}</div>
+                      <div className="text-xl mb-1">{t.icon}</div>
+                      <div className="font-extrabold text-xs leading-snug">{t.label}</div>
+                      <div className="text-[9px] text-gray-500 mt-0.5">{t.desc}</div>
                     </button>
                   ))}
                 </div>
               </div>
 
+              {/* Conditional Sub-selector for Frame */}
+              {productType === 'FRAME' && (
+                <div className="flex flex-col space-y-2 md:col-span-2 bg-white/5 p-3.5 rounded-2xl border border-white/5">
+                  <label className="text-xs font-bold text-gold tracking-wide uppercase">
+                    Select Frame Section *
+                  </label>
+                  <div className="grid grid-cols-2 gap-3">
+                    {[
+                      { id: 'Eyevengers Classic', label: 'Eyevengers Classic', icon: '👓', price: '₹450' },
+                      { id: 'Eyevengers Premium', label: 'Eyevengers Premium', icon: '💎', price: '₹650' }
+                    ].map((sec) => (
+                      <button
+                        key={sec.id}
+                        type="button"
+                        onClick={() => handleSectionSelect(sec.id)}
+                        className={`p-3 rounded-xl border text-left transition-all flex items-center justify-between ${
+                          section === sec.id
+                            ? 'bg-gold/20 border-gold text-white font-bold ring-1 ring-gold/50'
+                            : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10 hover:text-white'
+                        }`}
+                      >
+                        <span className="flex items-center space-x-2">
+                          <span>{sec.icon}</span>
+                          <span className="text-xs font-bold">{sec.label}</span>
+                        </span>
+                        <span className="text-xs text-gold font-mono">{sec.price}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Conditional Sub-selector for Lens */}
+              {productType === 'LENS' && (
+                <div className="flex flex-col space-y-2 md:col-span-2 bg-gradient-to-r from-amber-500/10 via-emerald-500/10 to-transparent p-4 rounded-2xl border border-gold/30">
+                  <label className="text-xs font-bold text-gold tracking-wide uppercase">
+                    Select Lens Component *
+                  </label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setLensCategory('LENS_TYPE')}
+                      className={`p-3 rounded-xl border text-left transition-all flex flex-col ${
+                        lensCategory === 'LENS_TYPE'
+                          ? 'bg-amber-500/20 border-amber-400 text-white font-bold ring-1 ring-amber-400/50'
+                          : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'
+                      }`}
+                    >
+                      <span className="text-xs font-bold text-amber-300">1. Lens Type</span>
+                      <span className="text-[10px] text-gray-400 mt-0.5">Single Vision, Bifocal, Progressive, Blue Cut Zero Power</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setLensCategory('LENS_COATING')}
+                      className={`p-3 rounded-xl border text-left transition-all flex flex-col ${
+                        lensCategory === 'LENS_COATING'
+                          ? 'bg-emerald-500/20 border-emerald-400 text-white font-bold ring-1 ring-emerald-400/50'
+                          : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'
+                      }`}
+                    >
+                      <span className="text-xs font-bold text-emerald-300">2. Lens Coating</span>
+                      <span className="text-[10px] text-gray-400 mt-0.5">Anti-Glare ARC, Blue Block UV420, Photochromic, Crizal Rock</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Barcode input */}
               <div className="flex flex-col space-y-1">
-                <label className="text-xs font-semibold text-gray-400">Barcode *</label>
+                <label className="text-xs font-semibold text-gray-400">
+                  Barcode {productType === 'LENS' ? '(Optional - Auto-generated)' : '*'}
+                </label>
                 <input
                   type="text"
-                  placeholder="Barcode / SKU scan"
+                  placeholder={productType === 'LENS' ? 'Auto-generated if empty' : 'Barcode / SKU scan'}
                   value={barcode}
                   onChange={(e) => setBarcode(e.target.value)}
                   className="w-full py-2 px-3 text-xs"
-                  required
+                  required={productType !== 'LENS'}
                 />
               </div>
 
+              {/* Brand input */}
               <div className="flex flex-col space-y-1">
-                <label className="text-xs font-semibold text-gray-400">Category *</label>
-                <select
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value)}
-                  className="w-full py-2 px-3 text-xs"
-                  required
-                >
-                  {categories.slice(1).map(cat => (
-                    <option key={cat} value={cat}>{cat}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="flex flex-col space-y-1">
-                <label className="text-xs font-semibold text-gray-400">Brand *</label>
+                <label className="text-xs font-semibold text-gray-400">
+                  {productType === 'LENS' ? 'Brand / Lab *' : 'Brand *'}
+                </label>
                 <input
                   type="text"
-                  placeholder="e.g. Ray-Ban"
+                  placeholder={productType === 'LENS' ? 'e.g. Essilor, Zeiss, Vision' : (productType === 'SUNGLASSES' ? 'e.g. Ray-Ban, Fastrack, Eyevengers' : 'e.g. Eyevengers')}
                   value={brand}
                   onChange={(e) => setBrand(e.target.value)}
                   className="w-full py-2 px-3 text-xs"
@@ -536,11 +656,18 @@ export default function Inventory({ user, activeStore, stores = [] }) {
                 />
               </div>
 
-              <div className="flex flex-col space-y-1">
-                <label className="text-xs font-semibold text-gray-400">Model Name *</label>
+              {/* Model / Lens Name input */}
+              <div className={`flex flex-col space-y-1 ${productType === 'LENS' ? 'md:col-span-2' : ''}`}>
+                <label className="text-xs font-semibold text-gray-400">
+                  {productType === 'LENS' ? (lensCategory === 'LENS_TYPE' ? 'Lens Type Name *' : 'Lens Coating Name *') : 'Model Name *'}
+                </label>
                 <input
                   type="text"
-                  placeholder="e.g. Aviator Classic"
+                  placeholder={
+                    productType === 'LENS'
+                      ? (lensCategory === 'LENS_TYPE' ? 'e.g. Single Vision Standard, Progressive HD' : 'e.g. Anti-Glare ARC, Blue Block UV420, Crizal Rock')
+                      : 'e.g. Aviator Classic, Metal Square'
+                  }
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   className="w-full py-2 px-3 text-xs"
@@ -548,42 +675,66 @@ export default function Inventory({ user, activeStore, stores = [] }) {
                 />
               </div>
 
-              <div className="flex flex-col space-y-1">
-                <label className="text-xs font-semibold text-gray-400">Color (Optional)</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Gold/Green"
-                  value={color}
-                  onChange={(e) => setColor(e.target.value)}
-                  className="w-full py-2 px-3 text-xs"
-                />
-              </div>
+              {/* Lens Features Field (for Lenses) */}
+              {productType === 'LENS' && (
+                <div className="flex flex-col space-y-1 md:col-span-2">
+                  <label className="text-xs font-semibold text-gold">
+                    Lens Features & Benefits (Printed on Customer Invoice) *
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Anti-Glare, Blue Cut UV420, Scratch Resistant, Water Repellent"
+                    value={features}
+                    onChange={(e) => setFeatures(e.target.value)}
+                    className="w-full py-2 px-3 text-xs"
+                  />
+                  <span className="text-[10px] text-gray-400">
+                    Yeh features bill aur invoice PDF me item ke sath print honge.
+                  </span>
+                </div>
+              )}
 
-              <div className="flex flex-col space-y-1">
-                <label className="text-xs font-semibold text-gray-400">Size (Optional)</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Medium (55mm)"
-                  value={size}
-                  onChange={(e) => setSize(e.target.value)}
-                  className="w-full py-2 px-3 text-xs"
-                />
-              </div>
+              {/* Color & Size (for Frame & Sunglasses) */}
+              {productType !== 'LENS' && (
+                <>
+                  <div className="flex flex-col space-y-1">
+                    <label className="text-xs font-semibold text-gray-400">Color (Optional)</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Gold/Green, Matte Black"
+                      value={color}
+                      onChange={(e) => setColor(e.target.value)}
+                      className="w-full py-2 px-3 text-xs"
+                    />
+                  </div>
 
+                  <div className="flex flex-col space-y-1">
+                    <label className="text-xs font-semibold text-gray-400">Size (Optional)</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Medium (55mm), Wide"
+                      value={size}
+                      onChange={(e) => setSize(e.target.value)}
+                      className="w-full py-2 px-3 text-xs"
+                    />
+                  </div>
+                </>
+              )}
+
+              {/* Pricing */}
               <div className="flex flex-col space-y-1">
-                <label className="text-xs font-semibold text-gray-400">Purchase Price (₹) *</label>
+                <label className="text-xs font-semibold text-gray-400">Purchase Price (₹) (Optional)</label>
                 <input
                   type="text"
                   placeholder="0"
                   value={purchasePrice}
                   onChange={(e) => setPurchasePrice(e.target.value.replace(/\D/g, ''))}
                   className="w-full py-2 px-3 text-xs"
-                  required
                 />
               </div>
 
               <div className="flex flex-col space-y-1">
-                <label className="text-xs font-semibold text-gray-400">Selling Price (₹) *</label>
+                <label className="text-xs font-semibold text-gray-400">Selling Price / Rate (₹) *</label>
                 <input
                   type="text"
                   placeholder="0"
@@ -594,34 +745,39 @@ export default function Inventory({ user, activeStore, stores = [] }) {
                 />
               </div>
 
-              <div className="flex flex-col space-y-1">
-                <label className="text-xs font-semibold text-gray-400">Opening Stock *</label>
-                <input
-                  type="text"
-                  placeholder="0"
-                  value={stock}
-                  onChange={(e) => setStock(e.target.value.replace(/\D/g, ''))}
-                  className="w-full py-2 px-3 text-xs"
-                  required
-                />
-              </div>
+              {/* Stock */}
+              {productType !== 'LENS' && (
+                <>
+                  <div className="flex flex-col space-y-1">
+                    <label className="text-xs font-semibold text-gray-400">Opening Stock *</label>
+                    <input
+                      type="text"
+                      placeholder="0"
+                      value={stock}
+                      onChange={(e) => setStock(e.target.value.replace(/\D/g, ''))}
+                      className="w-full py-2 px-3 text-xs"
+                      required
+                    />
+                  </div>
 
-              <div className="flex flex-col space-y-1">
-                <label className="text-xs font-semibold text-gray-400">Low Stock Limit *</label>
-                <input
-                  type="text"
-                  value={lowStockLimit}
-                  onChange={(e) => setLowStockLimit(e.target.value.replace(/\D/g, ''))}
-                  className="w-full py-2 px-3 text-xs"
-                  required
-                />
-              </div>
+                  <div className="flex flex-col space-y-1">
+                    <label className="text-xs font-semibold text-gray-400">Low Stock Limit *</label>
+                    <input
+                      type="text"
+                      value={lowStockLimit}
+                      onChange={(e) => setLowStockLimit(e.target.value.replace(/\D/g, ''))}
+                      className="w-full py-2 px-3 text-xs"
+                      required
+                    />
+                  </div>
+                </>
+              )}
 
               <div className="flex flex-col space-y-1 md:col-span-2">
-                <label className="text-xs font-semibold text-gray-400">Supplier (Optional)</label>
+                <label className="text-xs font-semibold text-gray-400">Supplier / Lab Notes (Optional)</label>
                 <input
                   type="text"
-                  placeholder="Supplier name or notes"
+                  placeholder="Supplier name or laboratory notes"
                   value={supplier}
                   onChange={(e) => setSupplier(e.target.value)}
                   className="w-full py-2 px-3 text-xs"

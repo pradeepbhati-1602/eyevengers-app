@@ -375,8 +375,14 @@ export default function NewBill({ activeStore, triggerToast }) {
         lens_details: {
           type_id: lensType,
           coating_id: lensCoating,
-          type: products.find(p => p.product_id === lensType || p.id === lensType)?.product_name || lensType,
-          coating: products.find(p => p.product_id === lensCoating || p.id === lensCoating)?.product_name || lensCoating,
+          type: products.find(p => (p.product_id === lensType || p.id === lensType) && p.category === 'LENS_TYPE')?.product_name || lensType,
+          type_brand: products.find(p => (p.product_id === lensType || p.id === lensType) && p.category === 'LENS_TYPE')?.brand || '',
+          type_features: products.find(p => (p.product_id === lensType || p.id === lensType) && p.category === 'LENS_TYPE')?.features || '',
+          type_price: parseFloat(products.find(p => (p.product_id === lensType || p.id === lensType) && p.category === 'LENS_TYPE')?.selling_price || 0),
+          coating: products.find(p => (p.product_id === lensCoating || p.id === lensCoating) && p.category === 'LENS_COATING')?.product_name || lensCoating,
+          coating_brand: products.find(p => (p.product_id === lensCoating || p.id === lensCoating) && p.category === 'LENS_COATING')?.brand || '',
+          coating_features: products.find(p => (p.product_id === lensCoating || p.id === lensCoating) && p.category === 'LENS_COATING')?.features || '',
+          coating_price: parseFloat(products.find(p => (p.product_id === lensCoating || p.id === lensCoating) && p.category === 'LENS_COATING')?.selling_price || 0),
           price: parsedLensCost
         },
         power_details: {
@@ -844,48 +850,77 @@ export default function NewBill({ activeStore, triggerToast }) {
               )}
 
             {/* Lens selection */}
-            <div className="pt-2 border-t border-white/5 grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="flex flex-col space-y-1">
-                <label className="text-xs font-semibold text-gray-400">Lens Type</label>
-                <select value={lensType} onChange={(e) => handleLensSelection(e.target.value, lensCoating)} className="w-full">
-                  <option value="">-- Select Lens Type --</option>
-                  {products.filter(p => p.category === 'LENS_TYPE').map(p => (
-                    <option key={p.product_id || p.id} value={p.product_id || p.id}>
-                      {p.brand} {p.product_name} - {formatCurrency(p.selling_price)}
-                    </option>
-                  ))}
-                  {products.filter(p => p.category === 'LENS_TYPE').length === 0 && (
-                    <option disabled>No Lens Types found in inventory</option>
-                  )}
-                </select>
-              </div>
+            {(() => {
+              const selType = products.find(p => (p.product_id === lensType || p.id === lensType) && p.category === 'LENS_TYPE');
+              const selCoating = products.find(p => (p.product_id === lensCoating || p.id === lensCoating) && p.category === 'LENS_COATING');
+              return (
+                <div className="pt-2 border-t border-white/5 grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="flex flex-col space-y-1">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-semibold text-gray-400">1. Lens Type</label>
+                      {selType && (
+                        <span className="text-[10px] text-gold font-bold">{formatCurrency(selType.selling_price)}</span>
+                      )}
+                    </div>
+                    <select value={lensType} onChange={(e) => handleLensSelection(e.target.value, lensCoating)} className="w-full">
+                      <option value="">-- Select Lens Type --</option>
+                      {products.filter(p => p.category === 'LENS_TYPE').map(p => (
+                        <option key={p.product_id || p.id} value={p.product_id || p.id}>
+                          {p.brand} {p.product_name} - {formatCurrency(p.selling_price)}
+                        </option>
+                      ))}
+                      {products.filter(p => p.category === 'LENS_TYPE').length === 0 && (
+                        <option disabled>No Lens Types found in inventory</option>
+                      )}
+                    </select>
+                    {selType?.features && (
+                      <div className="text-[10px] text-amber-300 bg-amber-500/10 border border-amber-500/20 px-2.5 py-1 rounded-lg mt-1">
+                        ✨ <strong>Features:</strong> {selType.features}
+                      </div>
+                    )}
+                  </div>
 
-              <div className="flex flex-col space-y-1">
-                <label className="text-xs font-semibold text-gray-400">Lens Coating</label>
-                <select value={lensCoating} onChange={(e) => handleLensSelection(lensType, e.target.value)} className="w-full">
-                  <option value="">-- Select Lens Coating --</option>
-                  {products.filter(p => p.category === 'LENS_COATING').map(p => (
-                    <option key={p.product_id || p.id} value={p.product_id || p.id}>
-                      {p.brand} {p.product_name} - {formatCurrency(p.selling_price)}
-                    </option>
-                  ))}
-                  {products.filter(p => p.category === 'LENS_COATING').length === 0 && (
-                    <option disabled>No Coatings found in inventory</option>
-                  )}
-                </select>
-              </div>
+                  <div className="flex flex-col space-y-1">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-semibold text-gray-400">2. Lens Coating</label>
+                      {selCoating && (
+                        <span className="text-[10px] text-gold font-bold">{formatCurrency(selCoating.selling_price)}</span>
+                      )}
+                    </div>
+                    <select value={lensCoating} onChange={(e) => handleLensSelection(lensType, e.target.value)} className="w-full">
+                      <option value="">-- Select Lens Coating --</option>
+                      {products.filter(p => p.category === 'LENS_COATING').map(p => (
+                        <option key={p.product_id || p.id} value={p.product_id || p.id}>
+                          {p.brand} {p.product_name} - {formatCurrency(p.selling_price)}
+                        </option>
+                      ))}
+                      {products.filter(p => p.category === 'LENS_COATING').length === 0 && (
+                        <option disabled>No Coatings found in inventory</option>
+                      )}
+                    </select>
+                    {selCoating?.features && (
+                      <div className="text-[10px] text-emerald-300 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-lg mt-1">
+                        🛡️ <strong>Features:</strong> {selCoating.features}
+                      </div>
+                    )}
+                  </div>
 
-              <div className="flex flex-col space-y-1">
-                <label className="text-xs font-semibold text-gray-400">Lens Rate (₹)</label>
-                <input
-                  type="text"
-                  placeholder="0"
-                  value={lensPrice}
-                  onChange={(e) => setLensPrice(e.target.value.replace(/\D/g, ''))}
-                  className="w-full"
-                />
-              </div>
-            </div>
+                  <div className="flex flex-col space-y-1">
+                    <label className="text-xs font-semibold text-gray-400">Total Lens Rate (₹)</label>
+                    <input
+                      type="text"
+                      placeholder="0"
+                      value={lensPrice}
+                      onChange={(e) => setLensPrice(e.target.value.replace(/\D/g, ''))}
+                      className="w-full"
+                    />
+                    <span className="text-[10px] text-gray-500 mt-0.5">
+                      Auto-calculated from Type + Coating (editable)
+                    </span>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
 
           {/* Box 3: Clinic Power prescription details */}
