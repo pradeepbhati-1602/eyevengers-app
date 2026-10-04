@@ -181,7 +181,9 @@ export default function Inventory({ user, activeStore, stores = [] }) {
           category,
           brand: brand || (section && section.startsWith('Eyevengers') ? 'Eyevengers' : 'Eyevengers'),
           frame_name: name,
+          product_name: name,
           frame_color: color,
+          color,
           size,
           purchase_price: parseFloat(purchasePrice),
           selling_price: parseFloat(sellingPrice),
@@ -334,13 +336,15 @@ export default function Inventory({ user, activeStore, stores = [] }) {
             </thead>
             <tbody className="divide-y divide-white/5 text-gray-300">
               {products.map(p => {
-                const isLow = p.current_stock <= p.low_stock_limit;
+                const isLow = p.current_stock <= (p.low_stock_limit ?? p.low_stock_alert ?? 5);
                 return (
                   <tr key={p.product_id} className="hover:bg-white/5">
                     <td className="py-4 pr-2 font-mono text-[10px] text-gray-400">{p.barcode}</td>
                     <td className="py-4 pr-2">
                       <span className="font-extrabold text-white block leading-tight">{p.brand}</span>
-                      <span className="text-[10px] text-gray-500 mt-0.5 block">{p.frame_name}</span>
+                      <span className="text-xs font-semibold text-gold/90 mt-0.5 block">
+                        {p.product_name || p.frame_name || '-'}
+                      </span>
                     </td>
                     <td className="py-4 pr-2">
                       <div className="flex flex-col space-y-1">
@@ -361,8 +365,8 @@ export default function Inventory({ user, activeStore, stores = [] }) {
                       </div>
                     </td>
                     <td className="py-4 pr-2">
-                      <span className="block text-white leading-none">{p.frame_color || '-'}</span>
-                      <span className="text-[9px] text-gray-500 mt-1 block">{p.size || '-'}</span>
+                      <span className="block text-white leading-none">{p.color || p.frame_color || '-'}</span>
+                      <span className="text-[9px] text-gray-400 mt-1 block">{p.size || '-'}</span>
                     </td>
                     <td className="py-4 text-right pr-2 font-bold text-white">{formatCurrency(p.selling_price)}</td>
                     <td className="py-4 text-center pr-2">
@@ -665,7 +669,7 @@ export default function Inventory({ user, activeStore, stores = [] }) {
 
             <form onSubmit={handleCreateTransfer} className="space-y-3.5">
               <div className="p-3 bg-white/5 border border-white/5 rounded-xl text-xs space-y-1">
-                <div>Product: <strong className="text-white">{selectedProductForTransfer.brand} {selectedProductForTransfer.frame_name}</strong></div>
+                <div>Product: <strong className="text-white">{selectedProductForTransfer.brand} {selectedProductForTransfer.product_name || selectedProductForTransfer.frame_name}</strong></div>
                 <div>SKU / Barcode: <span className="font-mono text-gray-400">{selectedProductForTransfer.barcode}</span></div>
                 <div>Available Stock: <span className="font-bold text-gold">{selectedProductForTransfer.current_stock} units</span></div>
               </div>
@@ -755,7 +759,7 @@ export default function Inventory({ user, activeStore, stores = [] }) {
                     {transfersList.map(t => (
                       <tr key={t.transfer_id} className="hover:bg-white/5">
                         <td className="py-3 pr-2">
-                          <span className="font-bold text-white block leading-tight">{t.brand} {t.frame_name}</span>
+                          <span className="font-bold text-white block leading-tight">{t.product?.brand || t.brand} {t.product?.product_name || t.product_name || t.frame_name}</span>
                           <span className="text-[9px] text-gray-500 font-mono mt-0.5 block">{t.barcode}</span>
                         </td>
                         <td className="py-3 pr-2 text-gray-400">{t.from_store_name}</td>

@@ -26,7 +26,13 @@ exports.lookupBarcode = async (req, res) => {
       return res.status(404).json({ message: 'Product not found' });
     }
 
-    res.json({ ...product, product_id: product.id });
+    res.json({ 
+      ...product, 
+      product_id: product.id,
+      frame_name: product.product_name,
+      frame_color: product.color,
+      low_stock_limit: product.low_stock_alert
+    });
   } catch (error) {
     console.error('Product barcode lookup error:', error);
     res.status(500).json({ error: 'Failed to lookup product' });
@@ -116,7 +122,13 @@ exports.getProducts = async (req, res) => {
         prisma.product.count({ where })
       ]);
       
-      const formattedData = data.map(prod => ({ ...prod, product_id: prod.id }));
+      const formattedData = data.map(prod => ({ 
+        ...prod, 
+        product_id: prod.id,
+        frame_name: prod.product_name,
+        frame_color: prod.color,
+        low_stock_limit: prod.low_stock_alert
+      }));
       
       return res.json({
         data: formattedData,
@@ -139,11 +151,18 @@ exports.getProducts = async (req, res) => {
         size: true,
         selling_price: true,
         current_stock: true,
-        barcode: true
+        barcode: true,
+        low_stock_alert: true
       },
       orderBy: { created_at: 'desc' } 
     });
-    const formattedProducts = products.map(prod => ({ ...prod, product_id: prod.id }));
+    const formattedProducts = products.map(prod => ({ 
+      ...prod, 
+      product_id: prod.id,
+      frame_name: prod.product_name,
+      frame_color: prod.color,
+      low_stock_limit: prod.low_stock_alert
+    }));
     res.json(formattedProducts);
   } catch (err) { res.status(500).json({ error: err.message }); }
 };
