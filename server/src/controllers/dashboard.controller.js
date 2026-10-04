@@ -25,9 +25,9 @@ exports.getMetrics = async (req, res) => {
       (req.user.role === 'OWNER' || req.user.cross_store_read)
         ? prisma.store.findMany({ where: { tenant_id }, select: { store_id: true, store_name: true } })
         : prisma.store.findMany({ where: { tenant_id, ...(storeFilter.store_id ? { store_id: storeFilter.store_id } : {}) }, select: { store_id: true, store_name: true } }),
-      prisma.bill.count({ where: { tenant_id, ...storeFilter, due_amount: { gt: 0 } } }),
-      prisma.bill.aggregate({ _sum: { due_amount: true }, where: { tenant_id, ...storeFilter, due_amount: { gt: 0 } } }),
-      prisma.bill.count({ where: { tenant_id, ...storeFilter, delivery_status: 'PENDING' } }),
+      prisma.bill.count({ where: { tenant_id, due_amount: { gt: 0 } } }),
+      prisma.bill.aggregate({ _sum: { due_amount: true }, where: { tenant_id, due_amount: { gt: 0 } } }),
+      prisma.bill.count({ where: { tenant_id, delivery_status: 'PENDING' } }),
       storeFilter.store_id 
         ? prisma.$queryRaw`SELECT COUNT(*) FROM products WHERE tenant_id = ${tenant_id} AND store_id = ${storeFilter.store_id} AND current_stock <= low_stock_alert AND status = 'ACTIVE'`
         : prisma.$queryRaw`SELECT COUNT(*) FROM products WHERE tenant_id = ${tenant_id} AND current_stock <= low_stock_alert AND status = 'ACTIVE'`,
@@ -132,16 +132,18 @@ exports.getDuePayments = async (req, res) => {
         due_amount: true, 
         total_amount: true, 
         created_at: true, 
+        store: { select: { store_name: true } },
         customer: { select: { name: true, mobile: true } } 
       },
       orderBy: { created_at: 'desc' },
-      take: 20
+      take: 100
     });
     const formatted = bills.map(b => ({
       ...b,
       bill_id: b.invoice_number, // UI expects invoice_number here
       customer_name: b.customer?.name || 'Unknown',
-      customer_mobile: b.customer?.mobile || ''
+      customer_mobile: b.customer?.mobile || '',
+      store_name: b.store?.store_name || 'Main Branch'
     }));
     res.json(formatted);
   } catch (error) {
@@ -161,10 +163,11 @@ exports.getUndelivered = async (req, res) => {
         created_at: true, 
         due_amount: true,
         items: true,
+        store: { select: { store_name: true } },
         customer: { select: { name: true, mobile: true } } 
       },
       orderBy: { created_at: 'asc' },
-      take: 20
+      take: 100
     });
     const formatted = bills.map(b => {
       let brand = 'Unknown';
@@ -184,7 +187,8 @@ exports.getUndelivered = async (req, res) => {
         bill_id: b.invoice_number,
         customer_name: b.customer?.name || 'Unknown',
         customer_mobile: b.customer?.mobile || '',
-        brand
+        brand,
+        store_name: b.store?.store_name || 'Main Branch'
       };
     });
     res.json(formatted);

@@ -46,11 +46,11 @@ export default function Dashboard({ user, tenant, activeStore, triggerToast }) {
       // Fetch all APIs concurrently using Promise.all
       const [res, resD, resB, resL, resR, resU] = await Promise.all([
         fetch(`/api/v1/dashboard?store_id=${activeStore}`, { headers }),
-        fetch(`/api/v1/dashboard/due-payments?store_id=${activeStore}`, { headers }),
+        fetch(`/api/v1/dashboard/due-payments`, { headers }),
         fetch('/api/v1/customers/birthdays', { headers }),
         fetch(`/api/v1/products/low-stock?store_id=${activeStore}`, { headers }),
         fetch(`/api/v1/repairs?store_id=${activeStore}`, { headers }),
-        fetch(`/api/v1/dashboard/undelivered?store_id=${activeStore}`, { headers })
+        fetch(`/api/v1/dashboard/undelivered`, { headers })
       ]);
 
       const [
@@ -133,13 +133,12 @@ export default function Dashboard({ user, tenant, activeStore, triggerToast }) {
     setLoadingDues(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`/api/bills?store_id=${activeStore}`, {
+      const res = await fetch(`/api/v1/dashboard/due-payments`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
       if (Array.isArray(data)) {
-        const filtered = data.filter(b => parseFloat(b.due_amount) > 0);
-        setDuesBills(filtered);
+        setDuesBills(data);
       }
     } catch (e) {
       console.error(e);
@@ -343,7 +342,7 @@ export default function Dashboard({ user, tenant, activeStore, triggerToast }) {
             <span className="text-[10px] bg-red-500/10 text-red-400 px-2.5 py-1 rounded-full font-bold uppercase">Pending Dues</span>
           </div>
           <div className="mt-4">
-            <h4 className="text-gray-400 text-xs font-semibold uppercase tracking-wider">Amount Due</h4>
+            <h4 className="text-gray-400 text-xs font-semibold uppercase tracking-wider">Amount Due (All Stores)</h4>
             <h3 className="text-2xl font-black text-red-400 mt-1">₹{metrics.alerts.totalDueAmount.toLocaleString('en-IN')}</h3>
             <p className="text-xs text-gray-500 mt-1">{metrics.alerts.pendingDues} accounts outstanding</p>
           </div>
@@ -562,7 +561,7 @@ export default function Dashboard({ user, tenant, activeStore, triggerToast }) {
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-base font-bold text-white flex items-center space-x-2">
               <Landmark className="w-5 h-5 text-gold" />
-              <span>Pending Handovers</span>
+              <span>Pending Handovers (All Stores)</span>
             </h3>
             <span className="text-xs font-semibold px-2 py-0.5 bg-gold/10 text-gold rounded-full border border-gold/20">{undeliveredList.length}</span>
           </div>
@@ -572,7 +571,14 @@ export default function Dashboard({ user, tenant, activeStore, triggerToast }) {
               undeliveredList.map(b => (
                 <div key={b.bill_id} className="p-3 bg-white/5 rounded-xl border border-white/5 flex items-center justify-between">
                   <div className="min-w-0 flex-1">
-                    <h5 className="text-xs font-bold text-white leading-snug truncate">{b.customer_name}</h5>
+                    <div className="flex items-center space-x-2">
+                      <h5 className="text-xs font-bold text-white leading-snug truncate">{b.customer_name}</h5>
+                      {b.store_name && (
+                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20 font-medium shrink-0">
+                          {b.store_name}
+                        </span>
+                      )}
+                    </div>
                     <span className="text-[10px] text-gray-500 font-mono block truncate">{b.bill_id} • {b.brand} {b.frame_name || 'Item'}</span>
                   </div>
                   <button
@@ -601,7 +607,7 @@ export default function Dashboard({ user, tenant, activeStore, triggerToast }) {
             <div className="flex items-center justify-between border-b border-white/5 pb-4 mb-4">
               <h3 className="text-lg font-black text-white flex items-center space-x-2">
                 <Landmark className="w-5 h-5 text-red-400 animate-pulse" />
-                <span>Outstanding Dues Accounts</span>
+                <span>Outstanding Dues Accounts (All Stores)</span>
               </h3>
               <button 
                 onClick={() => setShowDuesModal(false)}
@@ -637,6 +643,11 @@ export default function Dashboard({ user, tenant, activeStore, triggerToast }) {
                         <div className="flex items-center space-x-2">
                           <h4 className="text-sm font-bold text-white leading-tight">{b.customer_name}</h4>
                           <span className="text-[10px] text-gray-500 font-mono">({b.customer_mobile})</span>
+                          {b.store_name && (
+                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20 font-medium">
+                              {b.store_name}
+                            </span>
+                          )}
                         </div>
                         <span className="text-[10px] text-gray-400 font-mono block mt-1">Invoice: {b.bill_id} • Date: {new Date(b.created_at).toLocaleDateString()}</span>
                       </div>
