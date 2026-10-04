@@ -1,4 +1,7 @@
 const PDFDocument = require('pdfkit');
+const QRCode = require('qrcode');
+const { PrismaClient } = require('@prisma/client');
+const prisma = new PrismaClient();
 
 // Helper to draw a row with given columns
 function drawTableRow(doc, y, columns) {
@@ -49,6 +52,54 @@ function generateFooter(doc) {
 }
 
 exports.generateInvoicePDF = async (bill, tenant) => {
+  // Ensure we have tenant UPI settings
+  let upiId = (tenant?.upi_id || '').trim();
+  let upiQrCode = (tenant?.upi_qr_code || '').trim();
+
+  if ((!upiId || !upiQrCode) && (bill?.tenant_id || tenant?.tenant_id)) {
+    try {
+      const tId = bill?.tenant_id || tenant?.tenant_id;
+      const sList = await prisma.setting.findMany({ where: { tenant_id: tId } });
+      sList.forEach(s => {
+        if (s.key === 'upi_id' && !upiId) upiId = (s.value || '').trim();
+        if ((s.key === 'upi_qr_code' || s.key === 'store_qr_url') && !upiQrCode) upiQrCode = (s.value || '').trim();
+      });
+    } catch (e) {
+      console.error('Error fetching tenant UPI settings in PDF service:', e);
+    }
+  }
+
+  // Prepare QR code buffer (custom uploaded image or auto-generated from UPI ID)
+  let qrImageBuffer = null;
+  if (upiQrCode) {
+    try {
+      if (upiQrCode.startsWith('data:image')) {
+        const base64Data = upiQrCode.replace(/^data:image\/\w+;base64,/, '');
+        qrImageBuffer = Buffer.from(base64Data, 'base64');
+      } else {
+        qrImageBuffer = Buffer.from(upiQrCode, 'base64');
+      }
+    } catch (err) {
+      console.error('Failed to parse uploaded QR code buffer:', err);
+    }
+  }
+
+  if (!qrImageBuffer && upiId) {
+    try {
+      const upiUrl = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(tenant?.business_name || 'Eyevengers Optical')}&cu=INR`;
+      qrImageBuffer = await QRCode.toBuffer(upiUrl, {
+        width: 140,
+        margin: 1,
+        color: {
+          dark: '#1A1C24',
+          light: '#FFFFFF'
+        }
+      });
+    } catch (err) {
+      console.error('Failed to generate dynamic UPI QR code:', err);
+    }
+  }
+
   return new Promise((resolve, reject) => {
     try {
       // Prevent automatic page wrapping/breaking since we use absolute positioning
@@ -213,33 +264,73 @@ exports.generateInvoicePDF = async (bill, tenant) => {
         const rate = Number(item.price || 0);
         const qty = Number(item.qty || 1);
         const total = rate * qty;
+
+        const descText = item.product_name || 'Item';
+        const brandText = item.brand || item.category || 'Standard';
+        const rateText = `${rate.toFixed(2)} x ${qty}`;
+        const totalText = total.toFixed(2);
+
+        // Dynamically compute required row height based on actual wrapped text height
+        doc.font('Helvetica').fontSize(9);
+        const descHeight = doc.heightOfString(descText, { width: 190 });
+        const brandHeight = doc.heightOfString(brandText, { width: 165 });
+        const contentHeight = Math.max(descHeight, brandHeight, 14);
+        const rowHeight = contentHeight + 12; // 6pt padding top & bottom
+
         drawTableRow(doc, y + 6, [
-          { text: item.product_name || 'Item', x: 50, width: 190 },
-          { text: item.brand || item.category || 'Standard', x: 245, width: 165 },
-          { text: `${rate.toFixed(2)} x ${qty}`, x: 420, width: 60, align: 'right' },
-          { text: total.toFixed(2), x: 490, width: 70, align: 'right' }
+          { text: descText, x: 50, width: 190 },
+          { text: brandText, x: 245, width: 165 },
+          { text: rateText, x: 420, width: 60, align: 'right' },
+          { text: totalText, x: 490, width: 70, align: 'right' }
         ]);
-        doc.moveTo(40, y + 20).lineTo(572, y + 20).stroke('#E5E7EB');
-        y += 20;
+
+        doc.moveTo(40, y + rowHeight).lineTo(572, y + rowHeight).stroke('#E5E7EB');
+        y += rowHeight;
       });
-      y += 5;
+      y += 15;
 
       // ── FOOTER SECTIONS ──
-      // Payment Box (Left)
-      doc.rect(40, y, 220, 60).stroke('#E5E7EB');
-      doc.font('Helvetica-Bold').fontSize(9).text('Scan to Pay / Store UPI', 50, y + 10);
-      doc.font('Helvetica').fontSize(8).fillColor('#6B7280').text('Pay via GooglePay/PhonePe/UPI', 50, y + 25);
-      doc.font('Helvetica-Bold').fontSize(10).fillColor('#E5B343').text(tenant.upi_id || 'store@upi', 50, y + 40);
+      // Payment / Scan to Pay Box (Left: x 40, width 260)
+      const payBoxY = y;
+      const payBoxW = 260;
+      const payBoxH = 88;
+
+      doc.roundedRect(40, payBoxY, payBoxW, payBoxH, 6).lineWidth(1).stroke('#E5E7EB');
+
+      if (qrImageBuffer) {
+        try {
+          doc.image(qrImageBuffer, 48, payBoxY + 9, { width: 70, height: 70 });
+        } catch (e) {
+          console.error('Error drawing QR code image:', e);
+        }
+
+        const textX = 126;
+        doc.font('Helvetica-Bold').fontSize(10).fillColor('#1A1C24').text('Scan to Pay via UPI', textX, payBoxY + 12);
+        doc.font('Helvetica').fontSize(7.5).fillColor('#6B7280').text('GPay • PhonePe • Paytm • Any UPI', textX, payBoxY + 26);
+        
+        if (upiId) {
+          doc.font('Helvetica-Bold').fontSize(8).fillColor('#4B5563').text('UPI ID:', textX, payBoxY + 42);
+          doc.font('Helvetica-Bold').fontSize(9).fillColor('#D97706').text(upiId, textX, payBoxY + 54, { width: 165 });
+        }
+      } else {
+        doc.font('Helvetica-Bold').fontSize(10).fillColor('#1A1C24').text('Scan to Pay / Store UPI', 52, payBoxY + 16);
+        doc.font('Helvetica').fontSize(8.5).fillColor('#6B7280').text('Pay via GooglePay / PhonePe / Paytm', 52, payBoxY + 32);
+        if (upiId) {
+          doc.font('Helvetica-Bold').fontSize(9.5).fillColor('#D97706').text(`UPI ID: ${upiId}`, 52, payBoxY + 50);
+        } else {
+          doc.font('Helvetica-Bold').fontSize(9).fillColor('#D97706').text('Cash / Card / UPI accepted at counter', 52, payBoxY + 50);
+        }
+      }
 
       // Totals (Right)
       doc.fillColor('#000000').font('Helvetica').fontSize(9);
       const totalX = 350;
       const amountX = 490;
       
-      doc.text('Subtotal:', totalX, y + 10);
-      doc.text(subtotal.toFixed(2), amountX, y + 10, { width: 70, align: 'right' });
+      doc.text('Subtotal:', totalX, y + 6);
+      doc.text(subtotal.toFixed(2), amountX, y + 6, { width: 70, align: 'right' });
       
-      let totY = y + 25;
+      let totY = y + 21;
       if (bill.discount > 0) {
         doc.text('Discount:', totalX, totY);
         doc.text(`- ${Number(bill.discount).toFixed(2)}`, amountX, totY, { width: 70, align: 'right' });

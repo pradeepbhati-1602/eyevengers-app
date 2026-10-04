@@ -33,7 +33,17 @@ exports.downloadInvoicePDF = async (req, res) => {
       return res.status(404).json({ error: 'Tenant not found' });
     }
 
-    const pdfBuffer = await pdfService.generateInvoicePDF(bill, tenant);
+    const settingsList = await prisma.setting.findMany({ where: { tenant_id: bill.tenant_id } });
+    const settingsMap = {};
+    settingsList.forEach(s => { settingsMap[s.key] = s.value; });
+
+    const tenantWithSettings = {
+      ...tenant,
+      upi_id: settingsMap['upi_id'] || tenant.upi_id || '',
+      upi_qr_code: settingsMap['upi_qr_code'] || settingsMap['store_qr_url'] || ''
+    };
+
+    const pdfBuffer = await pdfService.generateInvoicePDF(bill, tenantWithSettings);
 
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `inline; filename="${bill.invoice_number}.pdf"`);

@@ -30,7 +30,9 @@ exports.getSettings = async (req, res) => {
       wa_template_general: templatesMap['GENERAL'] || '',
       wa_template_payment: templatesMap['PAYMENT'] || '',
       wa_template_offer: templatesMap['OFFER'] || '',
-      feedback_link: settingsMap['feedback_link'] || ''
+      feedback_link: settingsMap['feedback_link'] || '',
+      upi_id: settingsMap['upi_id'] || '',
+      upi_qr_code: settingsMap['upi_qr_code'] || settingsMap['store_qr_url'] || ''
     });
   } catch (err) {
     console.error(err);
@@ -57,7 +59,9 @@ exports.saveSettings = async (req, res) => {
       { key: 'referral_cashback_percent', value: data.referral_cashback_percent },
       { key: 'inactive_customer_days', value: data.inactive_customer_days },
       { key: 'low_stock_limit', value: data.low_stock_limit },
-      { key: 'feedback_link', value: data.feedback_link }
+      { key: 'feedback_link', value: data.feedback_link },
+      { key: 'upi_id', value: data.upi_id },
+      { key: 'upi_qr_code', value: data.upi_qr_code }
     ];
 
     for (const s of settingsToUpsert) {

@@ -32,7 +32,17 @@ exports.generatePdf = async (req, res) => {
       }
     }
 
-    const pdfUrl = await pdfService.generateInvoicePDF(bill, bill.tenant);
+    const settingsList = await prisma.setting.findMany({ where: { tenant_id } });
+    const settingsMap = {};
+    settingsList.forEach(s => { settingsMap[s.key] = s.value; });
+
+    const tenantWithSettings = {
+      ...bill.tenant,
+      upi_id: settingsMap['upi_id'] || bill.tenant?.upi_id || '',
+      upi_qr_code: settingsMap['upi_qr_code'] || settingsMap['store_qr_url'] || ''
+    };
+
+    const pdfUrl = await pdfService.generateInvoicePDF(bill, tenantWithSettings);
     
     // We update the bill just to mark that PDF was generated (optional)
     const fullUrl = `http://localhost:5000${pdfUrl}`;

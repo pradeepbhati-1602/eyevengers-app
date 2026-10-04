@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Settings, Save, ShieldAlert, Plus, Users, ShieldCheck, Check, Trash2, X } from 'lucide-react';
+import { Settings, Save, ShieldAlert, Plus, Users, ShieldCheck, Check, Trash2, X, QrCode, Upload } from 'lucide-react';
 import { useFeatures } from '../context/FeatureContext';
 
 export default function SettingsPage({ user, tenant, stores = [], setStores = () => {} }) {
@@ -17,6 +17,9 @@ export default function SettingsPage({ user, tenant, stores = [], setStores = ()
   const [waTemplatePayment, setWaTemplatePayment] = useState('');
   const [waTemplateOffer, setWaTemplateOffer] = useState('');
   const [feedbackLink, setFeedbackLink] = useState('');
+  const [upiId, setUpiId] = useState('');
+  const [upiQrCode, setUpiQrCode] = useState('');
+  const [qrPreview, setQrPreview] = useState('');
   
   const [loadingConfig, setLoadingConfig] = useState(true);
   const [savingConfig, setSavingConfig] = useState(false);
@@ -93,6 +96,9 @@ export default function SettingsPage({ user, tenant, stores = [], setStores = ()
       setWaTemplatePayment(data.wa_template_payment || `Dear {customer_name}, this is a gentle reminder that your bill payment of {dueAmount} is pending at ${tenant?.business_name || 'our store'}. You can pay via UPI at our store. Please disregard if already paid.`);
       setWaTemplateOffer(data.wa_template_offer || `Hello {customer_name}, exclusive offer for you at ${tenant?.business_name || 'our store'}! Get flat 15% off on our new arrivals of designer frames this weekend. Show this message at checkout.`);
       setFeedbackLink(data.feedback_link || '');
+      setUpiId(data.upi_id || '');
+      setUpiQrCode(data.upi_qr_code || '');
+      setQrPreview(data.upi_qr_code || '');
     } catch (e) {
       console.error(e);
     } finally {
@@ -224,7 +230,9 @@ export default function SettingsPage({ user, tenant, stores = [], setStores = ()
           wa_template_general: waTemplateGeneral,
           wa_template_payment: waTemplatePayment,
           wa_template_offer: waTemplateOffer,
-          feedback_link: feedbackLink
+          feedback_link: feedbackLink,
+          upi_id: upiId,
+          upi_qr_code: upiQrCode
         })
       });
       if (res.ok) {
@@ -237,6 +245,26 @@ export default function SettingsPage({ user, tenant, stores = [], setStores = ()
     } finally {
       setSavingConfig(false);
     }
+  };
+
+  const handleQrUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) {
+      alert('QR code image should be less than 2MB');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      setUpiQrCode(reader.result);
+      setQrPreview(reader.result);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemoveQr = () => {
+    setUpiQrCode('');
+    setQrPreview('');
   };
 
   const handleCreateEmployee = async (e) => {
@@ -610,6 +638,83 @@ export default function SettingsPage({ user, tenant, stores = [], setStores = ()
                 className="w-full h-16 text-xs px-3 py-2 resize-none"
                 required
               />
+            </div>
+
+            {/* Invoice UPI & QR Code Settings */}
+            <div className="p-4 rounded-2xl bg-white/[0.03] border border-gold/20 space-y-4">
+              <div className="flex items-center space-x-2 border-b border-white/5 pb-2">
+                <QrCode className="w-5 h-5 text-gold" />
+                <h4 className="text-sm font-bold text-white">Invoice Scan to Pay (UPI & QR Code)</h4>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="flex flex-col space-y-1">
+                  <label className="text-xs font-semibold text-gray-300">
+                    Store UPI ID (VPA) <span className="text-gold">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={upiId}
+                    onChange={(e) => setUpiId(e.target.value)}
+                    placeholder="e.g. eyevengers@okicici or 9876543210@paytm"
+                    className="w-full text-xs font-mono"
+                  />
+                  <span className="text-[11px] text-gray-400">
+                    Customer ke invoice PDF me 'Scan to Pay' box me yehi UPI ID print hogi.
+                  </span>
+                </div>
+
+                <div className="flex flex-col space-y-1">
+                  <label className="text-xs font-semibold text-gray-300">
+                    Custom Shop Standee QR Image <span className="text-gray-500 font-normal">(Optional)</span>
+                  </label>
+                  
+                  <div className="flex items-center space-x-3">
+                    <label className="flex items-center space-x-2 px-3 py-2 bg-white/10 hover:bg-white/15 text-white rounded-xl text-xs font-medium cursor-pointer transition-all border border-white/10">
+                      <Upload className="w-4 h-4 text-gold" />
+                      <span>{qrPreview ? 'Change QR Photo' : 'Upload Standee QR'}</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleQrUpload}
+                        className="hidden"
+                      />
+                    </label>
+
+                    {qrPreview && (
+                      <button
+                        type="button"
+                        onClick={handleRemoveQr}
+                        className="text-xs text-red-400 hover:text-red-300 px-2 py-1.5 bg-red-500/10 rounded-lg flex items-center space-x-1"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Remove</span>
+                      </button>
+                    )}
+                  </div>
+
+                  <span className="text-[11px] text-gray-400">
+                    Agar photo upload nahi karenge, to aapki UPI ID se automatic standard UPI QR generate hokar invoice me print hoga.
+                  </span>
+                </div>
+              </div>
+
+              {/* QR Preview Box */}
+              {qrPreview && (
+                <div className="flex items-center space-x-4 pt-2 border-t border-white/5">
+                  <div className="p-2 bg-white rounded-xl shadow-lg border border-white/20">
+                    <img src={qrPreview} alt="Shop UPI QR" className="w-20 h-20 object-contain rounded" />
+                  </div>
+                  <div className="text-xs space-y-1">
+                    <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300">
+                      ✓ Custom Standee QR Active
+                    </span>
+                    <p className="text-[11px] text-gray-400">
+                      Ye QR photo invoice ke 'Scan to Pay' box me print ki jayegi.
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
