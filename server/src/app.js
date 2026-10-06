@@ -5,8 +5,40 @@
 const express = require('express');
 const cors    = require('cors');
 const path    = require('path');
+const helmet  = require('helmet');
+const rateLimit = require('express-rate-limit');
+const { requireSuperAdmin } = require('./middleware/tenantIsolation');
 
 const app = express();
+
+// ── Security Headers (Helmet) ───────────────────────────────────────
+app.use(helmet({
+  contentSecurityPolicy: false, // Allows React frontend scripts and styling
+  crossOriginResourcePolicy: { policy: "cross-origin" }
+}));
+app.disable('x-powered-by'); // Hide Express fingerprint
+
+// ── Rate Limiting (Brute Force & DoS Protection) ─────────────────────
+// 1. General API Rate Limiter: 400 requests per minute per IP
+const generalLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000,
+  max: 400,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests from this IP, please try again in a minute.' }
+});
+app.use('/api/', generalLimiter);
+
+// 2. Strict Auth Limiter: 15 login attempts per 15 minutes per IP
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 15,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many login attempts. Please try again after 15 minutes.' }
+});
+app.use('/api/v1/auth/login', authLimiter);
+app.use('/api/v1/superadmin/login', authLimiter);
 
 // ── Middleware ─────────────────────────────────────────────────────
 const allowedOrigins = (process.env.CORS_ORIGIN || '*').split(',').map(s => s.trim());
@@ -23,9 +55,6 @@ app.use(cors({
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-// Serve uploaded files (legacy compatibility if needed, but not used for PDFs anymore)
-// app.use('/uploads', express.static(isVercel ? '/tmp/uploads' : path.join(__dirname, '..', 'uploads')));
-
 // ── Health check ──────────────────────────────────────────────────
 app.get('/api/v1/health', (req, res) => {
   res.json({
@@ -36,7 +65,8 @@ app.get('/api/v1/health', (req, res) => {
   });
 });
 
-app.get('/api/v1/fix-db', async (req, res) => {
+// ── Protected DB utility (Super Admin only) ──────────────────────
+app.get('/api/v1/fix-db', requireSuperAdmin, async (req, res) => {
   const { prisma } = require('./prisma');
   try {
     const results = [];
@@ -57,7 +87,7 @@ app.get('/api/v1/fix-db', async (req, res) => {
     
     res.json({ success: true, results });
   } catch (error) {
-    res.json({ success: false, error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
