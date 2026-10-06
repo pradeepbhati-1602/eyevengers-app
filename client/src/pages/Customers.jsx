@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   Search, Calendar, MapPin, Receipt, Gift, Eye, 
   Wrench, Phone, MessageSquare, ExternalLink, CalendarDays, ArrowUpDown, Users, Award, Upload,
-  ArrowLeft, ShoppingBag, Sparkles
+  ArrowLeft, ShoppingBag, Sparkles, Crown
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import SmartCustomerImport from '../components/SmartCustomerImport';
@@ -388,11 +388,19 @@ export default function Customers({ tenant }) {
                         : 'bg-darkSurface/50 border-white/5 text-gray-300 hover:bg-white/5 hover:text-white'
                     }`}
                   >
-                    <div>
-                      <h4 className="text-xs font-bold truncate max-w-[150px] flex items-center space-x-1">
-                        <span>{c.name}</span>
-                        {c.has_active_membership ? <Award className="w-3.5 h-3.5 text-gold" title="VIP Member" /> : null}
-                      </h4>
+                    <div className="min-w-0 pr-2">
+                      <div className="flex items-center space-x-1.5 flex-wrap gap-y-0.5">
+                        <span className="text-xs font-bold truncate max-w-[120px]">{c.name}</span>
+                        {(c.has_active_membership || (c.memberships && c.memberships.length > 0)) && (
+                          <span 
+                            className="inline-flex items-center space-x-0.5 px-1.5 py-0.5 rounded-md text-[9px] font-black bg-gradient-to-r from-amber-500/25 via-yellow-500/20 to-amber-500/10 text-yellow-300 border border-yellow-500/40 shadow-sm"
+                            title={`VIP Member: ${c.active_membership_plan || 'Active Membership'}`}
+                          >
+                            <Crown className="w-2.5 h-2.5 text-yellow-400 shrink-0" />
+                            <span>VIP</span>
+                          </span>
+                        )}
+                      </div>
                       <span className="text-[10px] text-gray-500 font-mono mt-0.5 block">{c.mobile}</span>
                     </div>
                     <div className="text-right">
@@ -453,11 +461,31 @@ export default function Customers({ tenant }) {
               {/* Header profile section */}
               <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 border-b border-white/10 pb-5">
                 <div className="flex items-center space-x-3.5">
-                  <div className="w-14 h-14 bg-gradient-to-tr from-gold to-gold-light text-darkBg font-black text-xl flex items-center justify-center rounded-2xl uppercase shadow-lg shadow-gold/15 shrink-0">
-                    {selectedProfile.customer.name.charAt(0)}
+                  <div className="relative shrink-0">
+                    <div className="w-14 h-14 bg-gradient-to-tr from-gold to-gold-light text-darkBg font-black text-xl flex items-center justify-center rounded-2xl uppercase shadow-lg shadow-gold/15">
+                      {selectedProfile.customer.name.charAt(0)}
+                    </div>
+                    {(activeMemb || selectedProfile.customer.has_active_membership) && (
+                      <div 
+                        className="absolute -bottom-1 -right-1 bg-darkBg rounded-full p-0.5 shadow-md border border-yellow-500/50" 
+                        title={`VIP Member: ${activeMemb?.plan_name || selectedProfile.customer.active_membership_plan || 'Active Membership'}`}
+                      >
+                        <div className="w-5 h-5 rounded-full bg-gradient-to-r from-amber-400 to-yellow-500 flex items-center justify-center text-darkBg">
+                          <Crown className="w-3 h-3 text-darkBg" />
+                        </div>
+                      </div>
+                    )}
                   </div>
                   <div>
-                    <h2 className="text-lg sm:text-xl font-black text-white tracking-tight">{selectedProfile.customer.name}</h2>
+                    <div className="flex items-center space-x-2 flex-wrap gap-1.5">
+                      <h2 className="text-lg sm:text-xl font-black text-white tracking-tight">{selectedProfile.customer.name}</h2>
+                      {(activeMemb || selectedProfile.customer.has_active_membership) && (
+                        <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-gradient-to-r from-amber-500/20 via-yellow-500/20 to-amber-500/10 text-yellow-300 border border-yellow-500/40 shadow-md shadow-yellow-500/10 animate-fade-in">
+                          <Crown className="w-3.5 h-3.5 text-yellow-400 shrink-0" />
+                          <span>{activeMemb?.plan_name || selectedProfile.customer.active_membership_plan || 'VIP Member'}</span>
+                        </span>
+                      )}
+                    </div>
                     <span className="text-xs text-gray-400 font-mono flex items-center space-x-1.5 mt-0.5">
                       <Phone className="w-3.5 h-3.5 text-gold" />
                       <span>{selectedProfile.customer.mobile}</span>

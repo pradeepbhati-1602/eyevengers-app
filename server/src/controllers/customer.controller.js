@@ -42,26 +42,54 @@ exports.getCustomers = async (req, res) => {
     ];
   }
   try {
+    const membershipInclude = {
+      memberships: {
+        where: {
+          status: 'ACTIVE',
+          expiry_date: { gt: new Date() }
+        },
+        include: { plan: true },
+        orderBy: { created_at: 'desc' }
+      }
+    };
+
     if (is_paginated === 'true') {
       const p = parseInt(page) || 1;
       const l = parseInt(limit) || 50;
       const skip = (p - 1) * l;
       
       const [data, total] = await Promise.all([
-        prisma.customer.findMany({ where, orderBy: { created_at: 'desc' }, skip, take: l, include: { memberships: true } }),
+        prisma.customer.findMany({ where, orderBy: { created_at: 'desc' }, skip, take: l, include: membershipInclude }),
         prisma.customer.count({ where })
       ]);
+
+      const formatted = data.map(c => {
+        const activeM = (c.memberships || [])[0];
+        return {
+          ...c,
+          has_active_membership: Boolean(activeM),
+          active_membership_plan: activeM?.plan?.name || null
+        };
+      });
       
       return res.json({
-        data,
+        data: formatted,
         total,
         page: p,
         pages: Math.ceil(total / l)
       });
     }
 
-    const customers = await prisma.customer.findMany({ where, orderBy: { created_at: 'desc' }, include: { memberships: true } });
-    res.json(customers);
+    const customers = await prisma.customer.findMany({ where, orderBy: { created_at: 'desc' }, include: membershipInclude });
+    const mapped = customers.map(c => {
+      const activeM = (c.memberships || [])[0];
+      return {
+        ...c,
+        has_active_membership: Boolean(activeM),
+        active_membership_plan: activeM?.plan?.name || null
+      };
+    });
+    res.json(mapped);
   } catch (err) { res.status(500).json({ error: err.message }); }
 };
 
@@ -74,7 +102,8 @@ exports.getCustomerById = async (req, res) => {
       where: { id, tenant_id },
       include: {
         memberships: {
-          include: { plan: true }
+          include: { plan: true },
+          orderBy: { created_at: 'desc' }
         },
         bills: {
           orderBy: { created_at: 'desc' }
@@ -94,6 +123,9 @@ exports.getCustomerById = async (req, res) => {
 
     const { bills, eye_tests, repair_orders, memberships, ...customerData } = customer;
     customerData.customer_id = customerData.id;
+    const activeM = (memberships || []).find(m => m.status === 'ACTIVE' && (!m.expiry_date || new Date(m.expiry_date) > new Date()));
+    customerData.has_active_membership = Boolean(activeM);
+    customerData.active_membership_plan = activeM?.plan?.name || null;
 
     res.json({
       customer: customerData,

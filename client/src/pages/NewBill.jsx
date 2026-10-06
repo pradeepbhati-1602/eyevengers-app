@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { 
   User, Phone, Calendar, MapPin, Gift, Eye, 
-  Receipt, DollarSign, Barcode, HelpCircle, Save, RotateCcw, AlertCircle
+  Receipt, DollarSign, Barcode, HelpCircle, Save, RotateCcw, AlertCircle, Crown
 } from 'lucide-react';
 
 import { saveOfflineBill } from '../utils/offlineStore';
@@ -536,10 +536,18 @@ export default function NewBill({ activeStore, triggerToast }) {
           
           {/* Box 1: Customer Profile */}
           <div className="glass-card p-6 rounded-3xl space-y-4">
-            <h3 className="text-base font-bold text-white flex items-center space-x-2">
-              <User className="w-5 h-5 text-gold" />
-              <span>1. Customer Details</span>
-            </h3>
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <h3 className="text-base font-bold text-white flex items-center space-x-2">
+                <User className="w-5 h-5 text-gold" />
+                <span>1. Customer Details</span>
+              </h3>
+              {activeMembership && (
+                <span className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-xs font-black bg-gradient-to-r from-amber-500/20 via-yellow-500/20 to-amber-500/10 text-yellow-300 border border-yellow-500/40 shadow-sm shadow-yellow-500/10 animate-fade-in">
+                  <Crown className="w-3.5 h-3.5 text-yellow-400 shrink-0" />
+                  <span>VIP: {activeMembership.plan_name} ({activeMembership.discount_percent}% Off)</span>
+                </span>
+              )}
+            </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="flex flex-col space-y-1">
