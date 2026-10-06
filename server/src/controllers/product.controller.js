@@ -40,9 +40,11 @@ exports.lookupBarcode = async (req, res) => {
 };
 
 exports.adjustStock = async (req, res) => {
-  const { tenant_id, user_id, store_id } = req.user;
+  const { tenant_id } = req.user;
+  const userId = req.user.id || req.user.user_id;
+  const storeId = req.user.store_id;
   const { id } = req.params;
-  const { adjustment_quantity, reason = 'Stock Adjustment' } = req.body;
+  const { adjustment_quantity, reason = 'New Stock Refill' } = req.body;
 
   try {
     const qty = parseInt(adjustment_quantity, 10);
@@ -52,29 +54,46 @@ exports.adjustStock = async (req, res) => {
       const product = await tx.product.findUnique({ where: { id } });
       if (!product || product.tenant_id !== tenant_id) throw new Error('Product not found');
 
+      const now = new Date();
       const updatedProduct = await tx.product.update({
         where: { id: product.id },
         data: {
           current_stock: { increment: qty },
-          last_updated_date: new Date(),
-          ...(qty > 0 ? { last_purchase_date: new Date() } : {})
+          last_updated_date: now,
+          updated_at: now,
+          ...(qty > 0 ? { last_purchase_date: now } : {})
         }
       });
 
-      await tx.inventoryHistory.create({
-        data: {
-          tenant_id,
-          store_id,
-          product_id: product.id,
-          user_id,
-          change_type: 'ADJUSTMENT',
-          quantity_changed: qty,
-          new_stock: product.current_stock + qty,
-          reason
+      // Safely record in inventory history if user is available
+      try {
+        if (userId) {
+          await tx.inventoryHistory.create({
+            data: {
+              tenant_id,
+              store_id: product.store_id || storeId || req.store_id,
+              product_id: product.id,
+              added_quantity: qty,
+              previous_stock: product.current_stock,
+              new_stock: product.current_stock + qty,
+              updated_by_id: userId,
+              reason: reason || (qty > 0 ? 'New Stock Refill' : 'Stock Adjustment')
+            }
+          });
         }
-      });
+      } catch (histErr) {
+        console.error('Inventory history log error:', histErr);
+      }
 
-      return updatedProduct;
+      return {
+        ...updatedProduct,
+        product_id: updatedProduct.id,
+        frame_name: updatedProduct.product_name,
+        frame_color: updatedProduct.color,
+        features: updatedProduct.features || '',
+        low_stock_limit: updatedProduct.low_stock_alert,
+        last_updated_date: updatedProduct.last_updated_date || updatedProduct.updated_at
+      };
     }, { maxWait: 10000, timeout: 30000 });
 
     res.json(result);
@@ -148,7 +167,8 @@ exports.getProducts = async (req, res) => {
         frame_name: prod.product_name,
         frame_color: prod.color,
         features: prod.features || '',
-        low_stock_limit: prod.low_stock_alert
+        low_stock_limit: prod.low_stock_alert,
+        last_updated_date: prod.last_updated_date || prod.updated_at || prod.created_at
       }));
       
       return res.json({
@@ -174,7 +194,11 @@ exports.getProducts = async (req, res) => {
         selling_price: true,
         current_stock: true,
         barcode: true,
-        low_stock_alert: true
+        low_stock_alert: true,
+        last_updated_date: true,
+        last_purchase_date: true,
+        created_at: true,
+        updated_at: true
       },
       orderBy: { created_at: 'desc' } 
     });
@@ -184,7 +208,8 @@ exports.getProducts = async (req, res) => {
       frame_name: prod.product_name,
       frame_color: prod.color,
       features: prod.features || '',
-      low_stock_limit: prod.low_stock_alert
+      low_stock_limit: prod.low_stock_alert,
+      last_updated_date: prod.last_updated_date || prod.updated_at || prod.created_at
     }));
     res.json(formattedProducts);
   } catch (err) { res.status(500).json({ error: err.message }); }

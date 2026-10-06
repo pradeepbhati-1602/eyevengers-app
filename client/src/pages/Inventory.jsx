@@ -51,6 +51,14 @@ export default function Inventory({ user, activeStore, stores = [] }) {
   const [submittingTransfer, setSubmittingTransfer] = useState(false);
   const [errorTransfer, setErrorTransfer] = useState('');
 
+  // Stock update modal states
+  const [showStockModal, setShowStockModal] = useState(false);
+  const [selectedProductForStock, setSelectedProductForStock] = useState(null);
+  const [stockAddQty, setStockAddQty] = useState('');
+  const [stockReason, setStockReason] = useState('New Stock Refill');
+  const [submittingStock, setSubmittingStock] = useState(false);
+  const [errorStock, setErrorStock] = useState('');
+
   useEffect(() => {
     fetchInventory();
   }, [activeCategory, search, lowStockFilter, activeStore, page]);
@@ -147,6 +155,54 @@ export default function Inventory({ user, activeStore, stores = [] }) {
     } catch (e) {
       console.error(e);
       alert('Error processing transfer');
+    }
+  };
+
+  const handleUpdateStock = async (e) => {
+    e.preventDefault();
+    if (!selectedProductForStock || !stockAddQty) return;
+    const qty = parseInt(stockAddQty, 10);
+    if (isNaN(qty) || qty <= 0) {
+      setErrorStock('Please enter a valid quantity greater than 0');
+      return;
+    }
+    setErrorStock('');
+    setSubmittingStock(true);
+    try {
+      const pId = selectedProductForStock.product_id || selectedProductForStock.id;
+      const res = await fetch(`/api/v1/products/${pId}/adjust-stock`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({
+          adjustment_quantity: qty,
+          reason: stockReason.trim() || 'New Stock Refill'
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to update stock');
+
+      // Update in local list immediately
+      setProducts(prev => prev.map(p => {
+        if ((p.product_id || p.id) === pId) {
+          return {
+            ...p,
+            current_stock: data.current_stock,
+            last_updated_date: data.last_updated_date || new Date().toISOString()
+          };
+        }
+        return p;
+      }));
+
+      setShowStockModal(false);
+      setSelectedProductForStock(null);
+      setStockAddQty('');
+    } catch (err) {
+      setErrorStock(err.message);
+    } finally {
+      setSubmittingStock(false);
     }
   };
 
@@ -441,11 +497,33 @@ export default function Inventory({ user, activeStore, stores = [] }) {
                         {isLow && (
                           <span className="text-[7px] font-black uppercase text-red-400 tracking-wider mt-0.5 animate-pulse">Low Limit</span>
                         )}
+                        {p.last_updated_date ? (
+                          <span className="text-[9px] text-gray-400 font-mono mt-1" title="Last Stock Update Date">
+                            📅 {new Date(p.last_updated_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                          </span>
+                        ) : p.created_at ? (
+                          <span className="text-[9px] text-gray-500 font-mono mt-1" title="Created Date">
+                            📅 {new Date(p.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                          </span>
+                        ) : null}
                       </div>
                     </td>
                     {(user.role === 'Owner' || user.role === 'OWNER' || (hasFeature('multi_store') && stores.length > 1)) && (
                       <td className="py-4 text-center">
                         <div className="flex items-center justify-center space-x-1">
+                          <button
+                            onClick={() => {
+                              setSelectedProductForStock(p);
+                              setStockAddQty('');
+                              setStockReason('New Stock Refill');
+                              setErrorStock('');
+                              setShowStockModal(true);
+                            }}
+                            className="p-2 text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 rounded-lg transition-all"
+                            title="Add / Update Stock (+)"
+                          >
+                            <Plus className="w-4 h-4" />
+                          </button>
                           {hasFeature('multi_store') && stores.length > 1 && p.current_stock > 0 && (
                             <button
                               onClick={() => {
@@ -998,6 +1076,114 @@ export default function Inventory({ user, activeStore, stores = [] }) {
                 <div className="py-12 text-center text-xs text-gray-500">No stock transfers found.</div>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Update Stock Modal */}
+      {showStockModal && selectedProductForStock && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
+          <div className="glass-modal max-w-md w-full p-6 rounded-3xl glow-gold/5 animate-fade-in-up space-y-5">
+            <div className="flex items-center justify-between border-b border-white/5 pb-3">
+              <div>
+                <h3 className="text-base font-bold text-white flex items-center space-x-2">
+                  <Plus className="w-5 h-5 text-emerald-400" />
+                  <span>Update Stock / Naya Maal Add Karein</span>
+                </h3>
+                <p className="text-[11px] text-gray-400 mt-0.5">
+                  <strong className="text-white">{selectedProductForStock.brand}</strong> — {selectedProductForStock.product_name || selectedProductForStock.frame_name} ({selectedProductForStock.barcode})
+                </p>
+              </div>
+              <button 
+                onClick={() => { setShowStockModal(false); setSelectedProductForStock(null); }}
+                className="p-1.5 text-gray-500 hover:text-gray-300 hover:bg-white/5 rounded-lg transition-all"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {errorStock && (
+              <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs">
+                {errorStock}
+              </div>
+            )}
+
+            <form onSubmit={handleUpdateStock} className="space-y-4">
+              <div className="grid grid-cols-2 gap-3 p-3.5 rounded-2xl bg-white/5 border border-white/5">
+                <div>
+                  <span className="text-[10px] text-gray-400 block font-semibold uppercase">Current Stock</span>
+                  <span className="text-lg font-black text-white">{selectedProductForStock.current_stock} pcs</span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-gray-400 block font-semibold uppercase">After Adding</span>
+                  <span className="text-lg font-black text-emerald-400">
+                    {selectedProductForStock.current_stock + (parseInt(stockAddQty, 10) || 0)} pcs
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex flex-col space-y-1">
+                <label className="text-xs font-semibold text-gray-300">
+                  New Quantity to Add (Pcs) *
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. 50"
+                  value={stockAddQty}
+                  onChange={(e) => setStockAddQty(e.target.value.replace(/\D/g, ''))}
+                  className="w-full text-sm font-bold font-mono py-2.5 px-3"
+                  autoFocus
+                  required
+                />
+                <span className="text-[10px] text-gray-400">
+                  Jitna naya maal aaya hai wo quantity daalein (ye current stock me jud jayegi).
+                </span>
+              </div>
+
+              <div className="flex flex-col space-y-1">
+                <label className="text-xs font-semibold text-gray-300">
+                  Reason / Note (Optional)
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. New Vendor Purchase / Refill"
+                  value={stockReason}
+                  onChange={(e) => setStockReason(e.target.value)}
+                  className="w-full text-xs py-2 px-3"
+                />
+              </div>
+
+              <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-[11px] flex items-center space-x-2">
+                <span>📅</span>
+                <span>
+                  Update karte hi aaj ki tareekh (<strong>{new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</strong>) automatic save ho jayegi aur table me dikhegi.
+                </span>
+              </div>
+
+              <div className="flex items-center justify-end space-x-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => { setShowStockModal(false); setSelectedProductForStock(null); }}
+                  className="px-4 py-2 text-xs font-semibold text-gray-400 hover:text-white"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={submittingStock || !stockAddQty}
+                  className="px-5 py-2.5 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-white text-xs font-bold rounded-xl shadow-lg shadow-emerald-500/20 transition-all disabled:opacity-50 flex items-center space-x-1.5"
+                >
+                  {submittingStock ? (
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  ) : (
+                    <>
+                      <Check className="w-4 h-4" />
+                      <span>Update Stock</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
