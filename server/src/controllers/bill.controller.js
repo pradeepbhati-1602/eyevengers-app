@@ -340,6 +340,72 @@ exports.cancelBill = async (req, res) => {
   }
 };
 
+const formatEyePowerForMsg = (power) => {
+  if (!power || typeof power !== 'object') return 'Not Specified';
+  const reSph = power.re_sph ?? power.right_sph ?? '';
+  const reCyl = power.re_cyl ?? power.right_cyl ?? '';
+  const reAxis = power.re_axis ?? power.right_axis ?? '';
+  const leSph = power.le_sph ?? power.left_sph ?? '';
+  const leCyl = power.le_cyl ?? power.left_cyl ?? '';
+  const leAxis = power.le_axis ?? power.left_axis ?? '';
+  const add = power.add ?? power.add_power ?? '';
+
+  let lines = [];
+  if (reSph || reCyl || reAxis) {
+    lines.push(`R: SPH ${reSph || '0.00'} | CYL ${reCyl || '0.00'} | AXIS ${reAxis || '-'}`);
+  }
+  if (leSph || leCyl || leAxis) {
+    lines.push(`L: SPH ${leSph || '0.00'} | CYL ${leCyl || '0.00'} | AXIS ${leAxis || '-'}`);
+  }
+  if (add) {
+    lines.push(`ADD: +${String(add).replace(/^\+/, '')}`);
+  }
+  return lines.length > 0 ? lines.join('\n') : 'Standard / Plano';
+};
+
+const formatProductDetailsForMsg = (items, lens, frameProduct) => {
+  let parts = [];
+  if (Array.isArray(items) && items.length > 0) {
+    const itemNames = items.map(i => `${i.product_name || i.name || 'Item'} (Qty: ${i.qty || 1})`).join(', ');
+    parts.push(`Items: ${itemNames}`);
+  } else if (frameProduct) {
+    parts.push(`Frame: ${frameProduct.name || frameProduct.model_number || 'Optical Frame'}`);
+  }
+
+  if (lens && typeof lens === 'object') {
+    const lType = lens.type || lens.lens_type || '';
+    const lCoating = lens.coating || lens.lens_coating || '';
+    const desc = [lType, lCoating].filter(Boolean).join(' - ');
+    if (desc) parts.push(`Lens: ${desc}`);
+  }
+  return parts.length > 0 ? parts.join('\n') : 'Prescription Eyewear';
+};
+
+const formatBillingDetailsForMsg = (bill) => {
+  const total = `₹${Number(bill.total_amount || 0).toLocaleString('en-IN')}`;
+  const advance = `₹${Number(bill.advance_paid || 0).toLocaleString('en-IN')}`;
+  const due = `₹${Number(bill.due_amount || 0).toLocaleString('en-IN')}`;
+  return `Total: ${total} | Advance: ${advance} | Balance Due: ${due}`;
+};
+
+const replaceTemplatePlaceholders = (template, data) => {
+  if (!template) return '';
+  return template
+    .replace(/{customer_name}/gi, data.customer_name || 'Valued Customer')
+    .replace(/{customer_mobile}/gi, data.customer_mobile || '')
+    .replace(/{invoice_number}/gi, data.invoice_number || '')
+    .replace(/{bill_id}/gi, data.invoice_number || '')
+    .replace(/{eye_power}/gi, data.eye_power || 'Not Specified')
+    .replace(/{product_details}/gi, data.product_details || 'Eyewear')
+    .replace(/{billing_details}/gi, data.billing_details || '')
+    .replace(/{total_amount}/gi, data.total_amount || '₹0')
+    .replace(/{advance_paid}/gi, data.advance_paid || '₹0')
+    .replace(/{due_amount}/gi, data.due_amount || '₹0')
+    .replace(/{store_name}/gi, data.store_name || 'Eyevengers Optical')
+    .replace(/{store_mobile}/gi, data.store_mobile || '')
+    .replace(/{feedback_link}/gi, data.feedback_link || '');
+};
+
 /**
  * Mark a bill as delivered
  */
@@ -350,7 +416,11 @@ exports.markDelivered = async (req, res) => {
   try {
     const existingBill = await prisma.bill.findFirst({
       where: { id, tenant_id },
-      include: { customer: true }
+      include: { 
+        customer: true,
+        frame_product: true,
+        store: true
+      }
     });
     
     if (!existingBill) return res.status(404).json({ error: 'Bill not found' });
@@ -361,14 +431,55 @@ exports.markDelivered = async (req, res) => {
         delivery_status: 'DELIVERED',
         delivery_date: new Date()
       },
-      include: { customer: true }
+      include: { 
+        customer: true,
+        frame_product: true,
+        store: true
+      }
     });
     
-    // Fetch tenant to get WA templates
+    // Fetch tenant, custom message templates and settings
     const tenant = await prisma.tenant.findUnique({ where: { tenant_id } });
-    
-    const waLinkEn = bill.customer ? `https://wa.me/91${bill.customer.mobile}?text=${encodeURIComponent(tenant?.wa_handover_msg_en || `Hi ${bill.customer.name}, your spectacles are delivered! Thanks for visiting.`)}` : null;
-    const waLinkHi = bill.customer ? `https://wa.me/91${bill.customer.mobile}?text=${encodeURIComponent(tenant?.wa_handover_msg_hi || `नमस्ते ${bill.customer.name}, आपके चश्मे की डिलीवरी हो गई है! धन्यवाद।`)}` : null;
+    const templates = await prisma.messageTemplate.findMany({
+      where: { tenant_id, type: { in: ['HANDOVER_EN', 'HANDOVER_HI'] } }
+    });
+    const templatesMap = {};
+    templates.forEach(t => { templatesMap[t.type] = t.content; });
+
+    const feedbackSetting = await prisma.setting.findUnique({
+      where: { tenant_id_key: { tenant_id, key: 'feedback_link' } }
+    });
+
+    const storeName = bill.store?.name || tenant?.business_name || 'Eyevengers Optical';
+    const storeMobile = bill.store?.mobile || tenant?.owner_mobile || '';
+    const feedbackLink = feedbackSetting?.value || '';
+
+    const templateData = {
+      customer_name: bill.customer?.name || 'Valued Customer',
+      customer_mobile: bill.customer?.mobile || '',
+      invoice_number: bill.invoice_number,
+      store_name: storeName,
+      store_mobile: storeMobile,
+      feedback_link: feedbackLink,
+      eye_power: formatEyePowerForMsg(bill.power_details),
+      product_details: formatProductDetailsForMsg(bill.items, bill.lens_details, bill.frame_product),
+      billing_details: formatBillingDetailsForMsg(bill),
+      total_amount: `₹${Number(bill.total_amount || 0).toLocaleString('en-IN')}`,
+      advance_paid: `₹${Number(bill.advance_paid || 0).toLocaleString('en-IN')}`,
+      due_amount: `₹${Number(bill.due_amount || 0).toLocaleString('en-IN')}`
+    };
+
+    const defaultMsgEn = `Dear *{customer_name}*,\n\nThank you for choosing *{store_name}*! Your eyewear order (*{invoice_number}*) has been delivered. 👓✨\n\n📋 *Order & Prescription Details:*\n• Mobile: {customer_mobile}\n• Product: {product_details}\n• Eye Power:\n{eye_power}\n\n💰 *Billing Summary:*\n{billing_details}\n\nWe hope you love your clear vision! For any adjustment or queries, feel free to visit our store or call {store_mobile}.`;
+    const defaultMsgHi = `प्रिय *{customer_name}*,\n\n*{store_name}* को चुनने के लिए धन्यवाद! आपका चश्मा (*{invoice_number}*) तैयार होकर डिलीवर कर दिया गया है। 👓✨\n\n📋 *ऑर्डर एवं नंबर विवरण:*\n• मोबाइल: {customer_mobile}\n• उत्पाद: {product_details}\n• आई पावर:\n{eye_power}\n\n💰 *बिलिंग विवरण:*\n{billing_details}\n\nआशा है कि आपको अपने नए चश्मे से स्पष्ट दृष्टि और आराम मिलेगा! किसी भी सहायता के लिए संपर्क करें: {store_mobile}।`;
+
+    const rawTplEn = templatesMap['HANDOVER_EN'] || tenant?.wa_handover_msg_en || defaultMsgEn;
+    const rawTplHi = templatesMap['HANDOVER_HI'] || tenant?.wa_handover_msg_hi || defaultMsgHi;
+
+    const msgEn = replaceTemplatePlaceholders(rawTplEn, templateData);
+    const msgHi = replaceTemplatePlaceholders(rawTplHi, templateData);
+
+    const waLinkEn = bill.customer?.mobile ? `https://wa.me/91${bill.customer.mobile}?text=${encodeURIComponent(msgEn)}` : null;
+    const waLinkHi = bill.customer?.mobile ? `https://wa.me/91${bill.customer.mobile}?text=${encodeURIComponent(msgHi)}` : null;
     
     res.json({ ...bill, waLinkEn, waLinkHi });
   } catch (error) {

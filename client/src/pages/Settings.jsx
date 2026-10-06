@@ -723,11 +723,13 @@ export default function SettingsPage({ user, tenant, stores = [], setStores = ()
                 <textarea
                   value={deliveryTemplateEn}
                   onChange={(e) => setDeliveryTemplateEn(e.target.value)}
-                  placeholder="Dear {customer_name}, your spectacles for {bill_id} are ready..."
-                  className="w-full h-24 text-xs px-3 py-2 bg-darkBg text-white border border-white/10 rounded-xl resize-none"
+                  placeholder="Dear {customer_name}, your spectacles for {invoice_number} are ready..."
+                  className="w-full h-36 text-xs px-3 py-2 bg-darkBg text-white border border-white/10 rounded-xl leading-relaxed resize-y"
                   required
                 />
-                <span className="text-[10px] text-gray-500">Supports variables: <code>{`{customer_name}`}</code>, <code>{`{bill_id}`}</code></span>
+                <span className="text-[10px] text-gray-400 leading-normal">
+                  Variables: <code>{`{customer_name}`}</code>, <code>{`{invoice_number}`}</code>, <code>{`{customer_mobile}`}</code>, <code>{`{eye_power}`}</code>, <code>{`{product_details}`}</code>, <code>{`{billing_details}`}</code>, <code>{`{store_name}`}</code>, <code>{`{store_mobile}`}</code>
+                </span>
               </div>
 
               <div className="flex flex-col space-y-1">
@@ -735,11 +737,13 @@ export default function SettingsPage({ user, tenant, stores = [], setStores = ()
                 <textarea
                   value={deliveryTemplateHi}
                   onChange={(e) => setDeliveryTemplateHi(e.target.value)}
-                  placeholder="प्रिय {customer_name}, आपका बिल {bill_id} का चश्मा तैयार है..."
-                  className="w-full h-24 text-xs px-3 py-2 bg-darkBg text-white border border-white/10 rounded-xl resize-none"
+                  placeholder="प्रिय {customer_name}, आपका बिल {invoice_number} का चश्मा तैयार है..."
+                  className="w-full h-36 text-xs px-3 py-2 bg-darkBg text-white border border-white/10 rounded-xl leading-relaxed resize-y"
                   required
                 />
-                <span className="text-[10px] text-gray-500">Supports variables: <code>{`{customer_name}`}</code>, <code>{`{bill_id}`}</code></span>
+                <span className="text-[10px] text-gray-400 leading-normal">
+                  Variables: <code>{`{customer_name}`}</code>, <code>{`{invoice_number}`}</code>, <code>{`{customer_mobile}`}</code>, <code>{`{eye_power}`}</code>, <code>{`{product_details}`}</code>, <code>{`{billing_details}`}</code>, <code>{`{store_name}`}</code>, <code>{`{store_mobile}`}</code>
+                </span>
               </div>
             </div>
 
