@@ -5,7 +5,7 @@ import {
   AlertTriangle, Cake, CheckSquare, Sparkles, MessageCircle, PhoneCall, Shield 
 } from 'lucide-react';
 import { 
-  BarChart, Bar, LineChart, Line, XAxis, YAxis, 
+  BarChart, Bar, LineChart, Line, AreaChart, Area, CartesianGrid, XAxis, YAxis, 
   Tooltip, ResponsiveContainer, PieChart, Pie, Cell 
 } from 'recharts';
 import { useFeatures } from '../context/FeatureContext';
@@ -373,69 +373,130 @@ export default function Dashboard({ user, tenant, activeStore, triggerToast }) {
       </div>
 
       {/* Analytics Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Sales Trend Chart */}
-        <div className="glass-card p-6 rounded-3xl border border-white/5 lg:col-span-2 flex flex-col">
-          <h3 className="text-lg font-bold text-white mb-4">Revenue Trend (Last 7 Days)</h3>
-          <div className="h-72 w-full flex-1">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={charts.revenueTrend}>
-                <XAxis dataKey="day" stroke="#4B5563" fontSize={11} tickLine={false} />
-                <YAxis stroke="#4B5563" fontSize={11} tickLine={false} axisLine={false} />
-                <Tooltip 
-                  contentStyle={{ backgroundColor: '#14161C', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '16px' }}
-                  labelStyle={{ color: '#D4AF37', fontWeight: 'bold' }}
-                />
-                <Line type="monotone" dataKey="sales" stroke="#D4AF37" strokeWidth={3} dot={{ fill: '#0D0F14', stroke: '#D4AF37', strokeWidth: 2 }} />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
+      {(() => {
+        const totalCategorySales = (charts.categorySplit || []).reduce((acc, curr) => acc + (Number(curr.value) || 0), 0);
+        const totalTrendSales = (charts.revenueTrend || []).reduce((acc, curr) => acc + (Number(curr.sales) || 0), 0);
 
-        {/* Category Share split */}
-        <div className="glass-card p-6 rounded-3xl border border-white/5 flex flex-col">
-          <h3 className="text-lg font-bold text-white mb-4">Sales Split by Category</h3>
-          <div className="h-72 w-full flex-1 relative flex items-center justify-center">
-            {(charts.categorySplit || []).length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={charts.categorySplit}
-                    innerRadius={65}
-                    outerRadius={90}
-                    paddingAngle={3}
-                    dataKey="value"
-                  >
-                    {(charts.categorySplit || []).map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip 
-                    formatter={(value) => `₹${parseFloat(value).toLocaleString('en-IN')}`}
-                    contentStyle={{ backgroundColor: '#14161C', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '16px' }}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-            ) : (
-              <p className="text-xs text-gray-500">No category sales recorded yet</p>
-            )}
-            {/* Center text overlay */}
-            <div className="absolute flex flex-col items-center justify-center">
-              <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Share</span>
-              <span className="text-sm font-black text-white">Products</span>
+        return (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Sales Trend Chart */}
+            <div className="glass-card p-6 rounded-3xl border border-white/5 lg:col-span-2 flex flex-col justify-between">
+              <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+                <div>
+                  <h3 className="text-lg font-bold text-white">Revenue Trend (Last 7 Days)</h3>
+                  <p className="text-xs text-gray-400">Daily optical sales tracking</p>
+                </div>
+                <div className="text-right bg-white/[0.03] border border-white/5 px-3 py-1.5 rounded-xl">
+                  <span className="text-[11px] text-gray-400">7-Day Total: </span>
+                  <span className="text-sm font-bold text-gold">₹{totalTrendSales.toLocaleString('en-IN')}</span>
+                </div>
+              </div>
+              <div className="h-64 min-h-[240px] w-full relative">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={charts.revenueTrend || []} margin={{ top: 10, right: 10, left: -15, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="salesGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#D4AF37" stopOpacity={0.35}/>
+                        <stop offset="95%" stopColor="#D4AF37" stopOpacity={0.0}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" vertical={false} />
+                    <XAxis 
+                      dataKey="day" 
+                      stroke="#9CA3AF" 
+                      fontSize={11} 
+                      tickLine={false} 
+                      axisLine={{ stroke: 'rgba(255,255,255,0.1)' }}
+                    />
+                    <YAxis 
+                      stroke="#9CA3AF" 
+                      fontSize={11} 
+                      tickLine={false} 
+                      axisLine={false}
+                      tickFormatter={(val) => val >= 1000 ? `₹${(val / 1000).toFixed(val % 1000 === 0 ? 0 : 1)}k` : `₹${val}`}
+                    />
+                    <Tooltip 
+                      contentStyle={{ backgroundColor: '#14161C', border: '1px solid rgba(212,175,55,0.3)', borderRadius: '14px', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.5)' }}
+                      formatter={(value) => [`₹${Number(value).toLocaleString('en-IN')}`, 'Sales']}
+                      labelStyle={{ color: '#D4AF37', fontWeight: 'bold', marginBottom: '4px' }}
+                    />
+                    <Area 
+                      type="monotone" 
+                      dataKey="sales" 
+                      stroke="#D4AF37" 
+                      strokeWidth={3} 
+                      fillOpacity={1} 
+                      fill="url(#salesGradient)" 
+                      dot={{ fill: '#0D0F14', stroke: '#D4AF37', strokeWidth: 2, r: 4 }}
+                      activeDot={{ r: 6, fill: '#D4AF37', stroke: '#ffffff', strokeWidth: 2 }}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            {/* Category Share split */}
+            <div className="glass-card p-6 rounded-3xl border border-white/5 flex flex-col justify-between">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="text-lg font-bold text-white">Sales Split by Category</h3>
+                  <p className="text-xs text-gray-400">Retail revenue breakdown</p>
+                </div>
+              </div>
+              <div className="h-56 min-h-[210px] w-full relative">
+                {(charts.categorySplit || []).length > 0 ? (
+                  <>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={charts.categorySplit}
+                          innerRadius={55}
+                          outerRadius={80}
+                          paddingAngle={(charts.categorySplit || []).length > 1 ? 4 : 0}
+                          dataKey="value"
+                          stroke="#0D0F14"
+                          strokeWidth={2}
+                        >
+                          {(charts.categorySplit || []).map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip 
+                          formatter={(value) => [`₹${Number(value).toLocaleString('en-IN')}`, 'Revenue']}
+                          contentStyle={{ backgroundColor: '#14161C', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '14px' }}
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                      <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Total</span>
+                      <span className="text-xs font-black text-white">₹{totalCategorySales.toLocaleString('en-IN')}</span>
+                    </div>
+                  </>
+                ) : (
+                  <div className="h-full flex items-center justify-center">
+                    <p className="text-xs text-gray-500">No category sales recorded yet</p>
+                  </div>
+                )}
+              </div>
+              {/* Chart Legend */}
+              <div className="mt-3 grid grid-cols-2 gap-2 max-h-28 overflow-y-auto pr-1">
+                {(charts.categorySplit || []).map((item, index) => {
+                  const pct = totalCategorySales > 0 ? Math.round((Number(item.value) / totalCategorySales) * 100) : 0;
+                  return (
+                    <div key={item.name} className="flex items-center justify-between p-1.5 rounded-lg bg-white/[0.02] border border-white/5">
+                      <div className="flex items-center space-x-1.5 min-w-0">
+                        <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: PIE_COLORS[index % PIE_COLORS.length] }}></span>
+                        <span className="text-[11px] text-gray-300 truncate">{item.name}</span>
+                      </div>
+                      <span className="text-[10px] font-bold text-gray-400 ml-1 shrink-0">{pct}%</span>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </div>
-          {/* Chart Legend */}
-          <div className="mt-4 grid grid-cols-2 gap-2 max-h-24 overflow-y-auto pr-1">
-            {(charts.categorySplit || []).map((item, index) => (
-              <div key={item.name} className="flex items-center space-x-2">
-                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: PIE_COLORS[index % PIE_COLORS.length] }}></span>
-                <span className="text-xs text-gray-400 truncate leading-none">{item.name}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
+        );
+      })()}
 
       {/* Alerts Widgets panel */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">

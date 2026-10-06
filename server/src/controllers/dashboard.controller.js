@@ -47,30 +47,111 @@ exports.getMetrics = async (req, res) => {
 
     const recentBillsForCharts = await prisma.bill.findMany({
       where: { tenant_id, ...storeFilter, created_at: { gte: sevenDaysAgo } },
-      select: { created_at: true, total_amount: true, items: true }
+      select: { created_at: true, total_amount: true }
     });
 
-    const revenueMap = {};
+    // Build 7-day trend map using consistent local date keys
+    const daysList = [];
     for (let i = 0; i < 7; i++) {
       const d = new Date(sevenDaysAgo);
       d.setDate(sevenDaysAgo.getDate() + i);
-      const dayStr = d.toLocaleDateString('en-US', { weekday: 'short' });
-      revenueMap[dayStr] = 0;
+      const dateKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      const dayLabel = d.toLocaleDateString('en-IN', { weekday: 'short', day: '2-digit' }); // e.g. "Mon 05"
+      daysList.push({ key: dateKey, day: dayLabel, sales: 0 });
     }
 
-    const categoryMap = { 'FRAMES': 0, 'SUNGLASSES': 0, 'CONTACT LENSES': 0, 'ACCESSORIES': 0 };
-
     recentBillsForCharts.forEach(b => {
-      const dayStr = new Date(b.created_at).toLocaleDateString('en-US', { weekday: 'short' });
-      if (revenueMap[dayStr] !== undefined) {
-        revenueMap[dayStr] += Number(b.total_amount);
+      const bDate = new Date(b.created_at);
+      const bKey = `${bDate.getFullYear()}-${String(bDate.getMonth() + 1).padStart(2, '0')}-${String(bDate.getDate()).padStart(2, '0')}`;
+      const match = daysList.find(d => d.key === bKey);
+      if (match) {
+        match.sales += Number(b.total_amount || 0);
       }
-      const cat = b.bill_type === 'SUNGLASSES' ? 'SUNGLASSES' : 'FRAMES';
-      categoryMap[cat] += Number(b.total_amount);
     });
 
-    const revenueTrend = Object.keys(revenueMap).map(day => ({ day, sales: revenueMap[day] }));
-    const categorySplit = Object.keys(categoryMap).filter(k => categoryMap[k] > 0).map(name => ({ name, value: categoryMap[name] }));
+    const revenueTrend = daysList.map(d => ({
+      day: d.day,
+      date: d.key,
+      sales: Math.round(d.sales)
+    }));
+
+    // Comprehensive itemized category breakdown
+    const categoryBills = await prisma.bill.findMany({
+      where: { 
+        tenant_id, 
+        ...storeFilter, 
+        created_at: { gte: firstDayOfMonth } 
+      },
+      select: { bill_type: true, total_amount: true, items: true, lens_details: true },
+      take: 100
+    });
+
+    let billsForCategory = categoryBills;
+    if (billsForCategory.length === 0) {
+      billsForCategory = await prisma.bill.findMany({
+        where: { tenant_id, ...storeFilter },
+        select: { bill_type: true, total_amount: true, items: true, lens_details: true },
+        orderBy: { created_at: 'desc' },
+        take: 50
+      });
+    }
+
+    const categoryMap = {
+      'Optical Frames': 0,
+      'Lenses': 0,
+      'Sunglasses': 0,
+      'Contact Lens': 0,
+      'Accessories': 0
+    };
+
+    billsForCategory.forEach(b => {
+      let parsedItems = b.items;
+      if (typeof parsedItems === 'string') {
+        try { parsedItems = JSON.parse(parsedItems); } catch(e) { parsedItems = null; }
+      }
+
+      let parsedLens = b.lens_details;
+      if (typeof parsedLens === 'string') {
+        try { parsedLens = JSON.parse(parsedLens); } catch(e) { parsedLens = null; }
+      }
+
+      let hasItemized = false;
+
+      if (Array.isArray(parsedItems) && parsedItems.length > 0) {
+        parsedItems.forEach(item => {
+          const cat = String(item.category || '').toUpperCase();
+          const amt = Number(item.price || 0) * Number(item.qty || 1);
+          if (amt > 0) {
+            hasItemized = true;
+            if (cat.includes('SUNGLASS')) categoryMap['Sunglasses'] += amt;
+            else if (cat.includes('CONTACT')) categoryMap['Contact Lens'] += amt;
+            else if (cat.includes('ACCESSOR') || cat.includes('REPAIR')) categoryMap['Accessories'] += amt;
+            else if (cat.includes('LENS')) categoryMap['Lenses'] += amt;
+            else categoryMap['Optical Frames'] += amt;
+          }
+        });
+      }
+
+      if (parsedLens) {
+        const lensPrice = Number(parsedLens.price || 0);
+        if (lensPrice > 0 || parsedLens.type || parsedLens.coating) {
+          hasItemized = true;
+          categoryMap['Lenses'] += (lensPrice > 0 ? lensPrice : 0);
+        }
+      }
+
+      if (!hasItemized && Number(b.total_amount) > 0) {
+        if (b.bill_type === 'SUNGLASSES') {
+          categoryMap['Sunglasses'] += Number(b.total_amount);
+        } else {
+          categoryMap['Optical Frames'] += Number(b.total_amount);
+        }
+      }
+    });
+
+    const categorySplit = Object.keys(categoryMap)
+      .filter(k => categoryMap[k] > 0)
+      .map(name => ({ name, value: Math.round(categoryMap[name]) }));
 
     res.json({
       metrics: {
